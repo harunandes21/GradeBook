@@ -61,4 +61,18 @@ public class UserController {
     private String getFileName(String username) {
         return username + ".json";
     }
+    
+    public User findUserByUsername(String username) {
+        String fileName = getFileName(username);
+        File file = new File(folderPath + "/" + fileName);
+        if (!file.exists()) return null;
+
+        try (Reader reader = new FileReader(file)) {
+            return gson.fromJson(reader, User.class);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
 }

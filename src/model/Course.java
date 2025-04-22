@@ -5,6 +5,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import model.grading.GradeCalculator;
+import java.beans.PropertyChangeListener;
+import java.beans.PropertyChangeSupport;
+
+
 /**
  * Represents a course in the gradebook system
  */
@@ -16,6 +21,10 @@ public class Course {
     private final List<Assignment> assignments;
     private final Map<String, GradingCategory> categories; // key: category name
     private boolean useCategories; // true = weighted mode, false = points mode
+    private GradeCalculator gradeCalculator;
+    private final PropertyChangeSupport pcs = new PropertyChangeSupport(this);
+
+
 
     // Constructor
     public Course(String name, String courseId, String semester, boolean useCategories) {
@@ -58,6 +67,7 @@ public class Course {
         if (s != null && !enrolledStudents.containsKey(s.getUsername())) {
             enrolledStudents.put(s.getUsername(), s);
             s.enrollInCourse(this);
+            pcs.firePropertyChange("studentEnrolled", null, s);
         }
     }
 
@@ -67,6 +77,7 @@ public class Course {
     public void removeStudent(Student s) {
         if (s != null) {
             enrolledStudents.remove(s.getUsername());
+            pcs.firePropertyChange("studentRemoved", s, null);
         }
     }
 
@@ -88,6 +99,7 @@ public class Course {
             if (useCategories && categories.containsKey(a.getCategoryName())) {
                 categories.get(a.getCategoryName()).addAssignment(a);
             }
+            pcs.firePropertyChange("assignmentAdded", null, a);
         }
     }
 
@@ -168,8 +180,57 @@ public class Course {
         return categoryAssignments;
     }
     
+    
+    /*
+     * removes it from the list of course assignments.
+     * removes it from its category (if categories are used).
+     * removes it from every student’s grade so it doesn't mess up GPA or course averages later.
+     * 
+     */
+    public void removeAssignment(Assignment a) {
+        if (a != null && assignments.contains(a)) {
+            assignments.remove(a);
+
+            
+            if (useCategories && categories.containsKey(a.getCategoryName())) {
+                categories.get(a.getCategoryName()).removeAssignment(a);
+            }
+
+            
+            Map<String, Grade> grades = a.getAllGrades();
+            for (String studentUsername : grades.keySet()) {
+                Student student = enrolledStudents.get(studentUsername);
+                if (student != null) {
+                    student.getGrades().remove(a); 
+                }
+            }
+        }
+    }
+
+
     @Override
     public String toString() {
         return name;
     }
+    public void clearGradingCategories() {
+        categories.clear();
+    }
+
+    public void setGradeCalculator(GradeCalculator gc) {
+        this.gradeCalculator = gc;
+    }
+
+    public GradeCalculator getGradeCalculator() {
+        return this.gradeCalculator;
+    }
+    
+    public void addPropertyChangeListener(PropertyChangeListener listener) {
+        pcs.addPropertyChangeListener(listener);
+    }
+
+    public void removePropertyChangeListener(PropertyChangeListener listener) {
+        pcs.removePropertyChangeListener(listener);
+    }
+
+
 }
