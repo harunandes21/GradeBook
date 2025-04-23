@@ -33,4 +33,13 @@ public enum GradeScale {
         }
         return E;
     }
+    
+    public static GradeScale fromLetter(String letter) {
+        for (GradeScale scale : GradeScale.values()) {
+            if (scale.letter.equalsIgnoreCase(letter)) {
+                return scale;
+            }
+        }
+        return E;
+    }
 }
