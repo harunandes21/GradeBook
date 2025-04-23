@@ -5,6 +5,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import model.grading.GradeCalculator;
+
+import java.beans.PropertyChangeSupport;
+import java.beans.PropertyChangeListener;
+
 /**
  * Represents a student user in the gradebook system.
  * Extends the base User class with student-specific functionality.
@@ -14,6 +19,8 @@ public class Student extends User {
     private final List<Course> currentCourses;
     private final List<Course> completedCourses;
     private final Map<Assignment, Grade> grades;
+    private final Map<Course, String> finalGrades;
+    private final PropertyChangeSupport pcs = new PropertyChangeSupport(this);
 
     // Constructor
     public Student(String firstName, String lastName, String email, String password, String username, String studentId) {
@@ -22,6 +29,7 @@ public class Student extends User {
         this.currentCourses = new ArrayList<>();
         this.completedCourses = new ArrayList<>();
         this.grades = new HashMap<>();
+        this.finalGrades = new HashMap<>();
     }
 
     // Getters
@@ -48,6 +56,7 @@ public class Student extends User {
         if (course != null && !currentCourses.contains(course)) {
             currentCourses.add(course);
             course.enrollStudent(this);
+            pcs.firePropertyChange("courseEnrolled", null, course);
         }
     }
 
@@ -55,9 +64,18 @@ public class Student extends User {
      * Marks a course as completed by moving it from current to completed
      */
     public void completeCourse(Course course) {
-    	if (currentCourses.contains(course)) {
-    		currentCourses.remove(course);
+        if (currentCourses.contains(course)) {
+        	currentCourses.remove(course);
             completedCourses.add(course);
+            
+            // Calculate and set final grade
+            double average = calculateClassAverage(course);
+            if (average > 0) {
+                String letterGrade = getLetterGrade(average);
+                finalGrades.put(course, letterGrade);
+            }
+            
+            pcs.firePropertyChange("courseCompleted", null, course);
         }
     }
     
@@ -68,6 +86,7 @@ public class Student extends User {
         if (assignment != null && grade != null) {
             grades.put(assignment, grade);
             assignment.addGrade(this.getUsername(), grade);
+            pcs.firePropertyChange("gradeAdded", null, assignment);
         }
     }
 
@@ -81,9 +100,56 @@ public class Student extends User {
     /*
      * Calculates the student's overall GPA based on completed courses
      */
-//    public double calculateGPA(GradingStrategy strategy) {
-//    	// use GradingStrategy (which also will handle class averages)
-//    }
+    public double calculateGPA() {
+        if (completedCourses.isEmpty()) {
+            return 0.0;
+        }
+        
+        double totalGPA = 0.0;
+        int count = 0;
+        
+        for (Course course : completedCourses) {
+            String letterGrade = finalGrades.get(course);
+            if (letterGrade != null && !letterGrade.isEmpty()) {
+                totalGPA += GradeScale.fromLetter(letterGrade).getGpaValue();
+                count++;
+            }
+        }
+        
+        return count > 0 ? totalGPA / count : 0.0;
+    }
+    
+    /*
+     * Calculates the student's average in a specific course
+     */
+    public double calculateClassAverage(Course theCourse) {
+        if (theCourse == null || !currentCourses.contains(theCourse)) {
+            return 0.0;
+        }
+        
+        GradeCalculator calculator = theCourse.getGradeCalculator();
+        if (calculator != null) {
+            return calculator.calculateFinalAverage(theCourse, this);
+        }
+        return 0.0;
+    }
+    
+    /*
+     * Sets the final letter grade for a course
+     */
+    public void setFinalGradeForCourse(Course theCourse, String letterGrade) {
+        if (theCourse != null && letterGrade != null && currentCourses.contains(theCourse)) {
+            finalGrades.put(theCourse, letterGrade);
+            pcs.firePropertyChange("finalGradeSet", null, new Object[]{theCourse, letterGrade});
+        }
+    }
+    
+    /*
+     * Gets the final letter grade for a course
+     */
+    public String getFinalGradeForCourse(Course theCourse) {
+        return finalGrades.get(theCourse);
+    }
     
     /*
      * Converts percentage grade to GPA
@@ -112,5 +178,14 @@ public class Student extends User {
             }
         }
         return feedbackMap;
+    }
+    
+    // Observer pattern support
+    public void addPropertyChangeListener(PropertyChangeListener listener) {
+        pcs.addPropertyChangeListener(listener);
+    }
+
+    public void removePropertyChangeListener(PropertyChangeListener listener) {
+        pcs.removePropertyChangeListener(listener);
     }
 }
