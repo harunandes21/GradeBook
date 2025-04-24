@@ -61,6 +61,7 @@ public class LoginView extends JFrame {
         return new String(passwordField.getPassword());
     }
 
+    
     public JButton getLoginButton() {
         return loginButton;
     }

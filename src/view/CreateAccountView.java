@@ -11,12 +11,13 @@ public class CreateAccountView extends JFrame {
     private JTextField lastNameField;
     private JTextField usernameField;
     private JPasswordField passwordField;
-    private JTextField emailField;
+    
     private JComboBox<String> roleBox;
-    private JTextField idField;
+   
     private JButton createButton;
     private JButton cancelButton;
 
+    
     public CreateAccountView() {
         setTitle("Create Account");
         setSize(400, 400);
@@ -58,12 +59,7 @@ public class CreateAccountView extends JFrame {
         passwordField = new JPasswordField(15);
         panel.add(passwordField, gbc); y++;
 
-        // Email
-        gbc.gridx = 0; gbc.gridy = y;
-        panel.add(new JLabel("Email:"), gbc);
-        gbc.gridx = 1;
-        emailField = new JTextField(15);
-        panel.add(emailField, gbc); y++;
+        
 
         // Role
         gbc.gridx = 0; gbc.gridy = y;
@@ -72,12 +68,7 @@ public class CreateAccountView extends JFrame {
         roleBox = new JComboBox<>(new String[]{"Student", "Teacher"});
         panel.add(roleBox, gbc); y++;
 
-        // ID (Student ID or Teacher ID)
-        gbc.gridx = 0; gbc.gridy = y;
-        panel.add(new JLabel("ID Number:"), gbc);
-        gbc.gridx = 1;
-        idField = new JTextField(15);
-        panel.add(idField, gbc); y++;
+        
 
         // Buttons
         gbc.gridx = 0; gbc.gridy = y;
@@ -96,9 +87,9 @@ public class CreateAccountView extends JFrame {
     public String getLastName() { return lastNameField.getText(); }
     public String getUsername() { return usernameField.getText(); }
     public String getPassword() { return new String(passwordField.getPassword()); }
-    public String getEmail() { return emailField.getText(); }
+    
     public String getRole() { return (String) roleBox.getSelectedItem(); }
-    public String getIdNumber() { return idField.getText(); }
+  
     public JButton getCreateButton() { return createButton; }
     public JButton getCancelButton() { return cancelButton; }
     

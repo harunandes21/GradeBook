@@ -3,6 +3,10 @@ package view;
 import model.*;
 
 import javax.swing.*;
+
+import controller.TeacherController;
+import controller.UserController;
+
 import java.awt.*;
 import java.util.List;
 
@@ -12,19 +16,28 @@ import java.util.List;
 public class CourseView extends JFrame {
     private JLabel courseTitle;
     private JButton backButton;
+    private JButton addStudentButton;
+    private JButton addAssignmentButton;
+    private JButton calcAverageButton;
+    private TeacherController teacherController;
+
 
     private JTable rosterTable;
     private JTable assignmentTable;
     private JTable gradeTable;
     private JTable myGradeTable;
+	private Course course;
 
-    public CourseView(User user, Course course) {
+    public CourseView(User user, Course course, TeacherController teacherController) {
+        this.teacherController = teacherController;
+        this.course = course;
+
         setTitle("Course: " + course.getName());
         setSize(700, 500);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        // Top panel with course title and back button
+        // Top bar
         JPanel topPanel = new JPanel(new BorderLayout());
         courseTitle = new JLabel("Course: " + course.getName());
         courseTitle.setFont(new Font("Arial", Font.BOLD, 20));
@@ -32,41 +45,148 @@ public class CourseView extends JFrame {
         topPanel.add(courseTitle, BorderLayout.WEST);
         topPanel.add(backButton, BorderLayout.EAST);
 
-        // Tabbed content area
+        // Tabs
         JTabbedPane tabbedPane = new JTabbedPane();
-        
-/* The logic to show different views for teacher and students
- * if the instance is teacher, show specific elements for teacher
- * if the instance is student, show specific elements for student
- * 
- * */
-       
+
         if (user instanceof Teacher) {
-            // Roster tab (teacher only)
-            rosterTable = new JTable(); // To be filled later
-            tabbedPane.addTab("Roster", new JScrollPane(rosterTable));
-
-            // Assignments tab
+            rosterTable = new JTable();
             assignmentTable = new JTable();
-            tabbedPane.addTab("Assignments", new JScrollPane(assignmentTable));
-
-            // Grades tab (all students)
             gradeTable = new JTable();
+
+            tabbedPane.addTab("Roster", new JScrollPane(rosterTable));
+            tabbedPane.addTab("Assignments", new JScrollPane(assignmentTable));
             tabbedPane.addTab("Grades", new JScrollPane(gradeTable));
         } else if (user instanceof Student) {
-            // Assignments tab (student view)
             assignmentTable = new JTable();
-            tabbedPane.addTab("Assignments", new JScrollPane(assignmentTable));
-
-            // My Grades tab (just their grades)
             myGradeTable = new JTable();
+
+            tabbedPane.addTab("Assignments", new JScrollPane(assignmentTable));
             tabbedPane.addTab("My Grades", new JScrollPane(myGradeTable));
         }
 
-        
+        // Bottom buttons for teacher
+        if (user instanceof Teacher) {
+            JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+            addStudentButton = new JButton("Add Student");
+            addAssignmentButton = new JButton("Add Assignment");
+            calcAverageButton = new JButton("Calculate Averages");
+
+            buttonPanel.add(addStudentButton);
+            buttonPanel.add(addAssignmentButton);
+            buttonPanel.add(calcAverageButton);
+            add(buttonPanel, BorderLayout.SOUTH);
+
+            // Add Student Logic
+            addStudentButton.addActionListener(e -> {
+                String studentUsername = JOptionPane.showInputDialog(this, "Enter student username:");
+                if (studentUsername != null && !studentUsername.trim().isEmpty()) {
+                    Student foundStudent = teacherController.getStudentByUsername(studentUsername.trim());
+                    if (foundStudent != null) {
+                        boolean success = teacherController.addStudentToCourse(foundStudent, course);
+                        if (!success) {
+                            JOptionPane.showMessageDialog(this, "Failed to add student.");
+                        }
+                    } else {
+                        JOptionPane.showMessageDialog(this, "Student not found.");
+                    }
+                }
+            });
+
+            // Add Assignment Logic
+            addAssignmentButton.addActionListener(e -> {
+                JTextField nameField = new JTextField(10);
+                JTextField pointsField = new JTextField(5);
+                JTextField dueDateField = new JTextField(10);
+                JTextField categoryField = new JTextField(10);
+                JTextField groupField = new JTextField(10);
+
+                JPanel panel = new JPanel(new GridLayout(5, 2));
+                panel.add(new JLabel("Assignment Name:"));
+                panel.add(nameField);
+                panel.add(new JLabel("Points Worth:"));
+                panel.add(pointsField);
+                panel.add(new JLabel("Due Date:"));
+                panel.add(dueDateField);
+                panel.add(new JLabel("Category:"));
+                panel.add(categoryField);
+                panel.add(new JLabel("Group:"));
+                panel.add(groupField);
+
+                int result = JOptionPane.showConfirmDialog(this, panel, "Add Assignment", JOptionPane.OK_CANCEL_OPTION);
+                if (result == JOptionPane.OK_OPTION) {
+                    try {
+                        String name = nameField.getText().trim();
+                        double points = Double.parseDouble(pointsField.getText().trim());
+                        String dueDate = dueDateField.getText().trim();
+                        String category = categoryField.getText().trim();
+                        String group = groupField.getText().trim();
+
+                        Assignment newAssign = new Assignment(name, points, dueDate, category, group);
+                        boolean added = teacherController.addAssignmentToCourse(newAssign, course);
+
+                        if (!added) {
+                            JOptionPane.showMessageDialog(this, "Failed to add assignment.");
+                        }
+                    } catch (Exception ex) {
+                        JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
+                    }
+                }
+            });
+
+            // Calculate Averages Logic
+            calcAverageButton.addActionListener(e -> {
+                List<Assignment> assignments = course.getAllAssignments();
+                if (assignments.isEmpty()) {
+                    JOptionPane.showMessageDialog(this, "No assignments in course.");
+                    return;
+                }
+
+                StringBuilder message = new StringBuilder("Class Averages:\n");
+                for (Assignment a : assignments) {
+                    double avg = teacherController.calculateClassAverage(a);
+                    message.append(a.getName()).append(": ").append(String.format("%.2f", avg)).append("\n");
+                }
+                JOptionPane.showMessageDialog(this, message.toString());
+            });
+        }
+
         add(topPanel, BorderLayout.NORTH);
         add(tabbedPane, BorderLayout.CENTER);
+
+        // React to model events
+        course.addPropertyChangeListener(evt -> {
+            switch (evt.getPropertyName()) {
+                case "studentEnrolled", "studentRemoved" -> refreshRoster(course);
+                case "assignmentAdded" -> refreshAssignments(course);
+            }
+        });
     }
+    private void refreshRoster(Course course) {
+        if (rosterTable == null) return;
+        List<Student> students = course.getEnrolledStudents();
+        String[][] data = new String[students.size()][2];
+        for (int i = 0; i < students.size(); i++) {
+            Student s = students.get(i);
+            data[i][0] = s.getFirstName() + " " + s.getLastName();
+            data[i][1] = s.getStudentId();
+        }
+        String[] columnNames = {"Name", "Student ID"};
+        rosterTable.setModel(new javax.swing.table.DefaultTableModel(data, columnNames));
+    }
+
+    private void refreshAssignments(Course course) {
+        if (assignmentTable == null) return;
+        List<Assignment> assignments = course.getAllAssignments();
+        String[][] data = new String[assignments.size()][2];
+        for (int i = 0; i < assignments.size(); i++) {
+            Assignment a = assignments.get(i);
+            data[i][0] = a.getName();
+            data[i][1] = String.valueOf(a.getPointsWorth());
+        }
+        String[] columnNames = {"Assignment", "Points"};
+        assignmentTable.setModel(new javax.swing.table.DefaultTableModel(data, columnNames));
+    }
+
 
     // To be implemented to controllers later 
     public JButton getBackButton() {
@@ -84,15 +204,31 @@ public class CourseView extends JFrame {
     public JTable getGradeTable() {
         return gradeTable;
     }
-
+ 
+    
     public JTable getMyGradeTable() {
         return myGradeTable;
     }
+    
+    public JButton getAddStudentButton() {
+        return addStudentButton;
+    }
+
+    public JButton getAddAssignmentButton() {
+        return addAssignmentButton;
+    }
+
+    public JButton getCalcAverageButton() {
+        return calcAverageButton;
+    }
+
     public static void main(String[] args) {
         // Step 1: Create course and teacher
         Course course = new Course("CSC 335", "335", "Spring 2025", false);
         Teacher melanie = new Teacher("Melanie", "Lotz", "mlotz@cs.arizona.edu", "pass123", "mlotz", "T999");
         melanie.addCourse(course);
+        UserController uc = new UserController();
+        TeacherController tc = new TeacherController(melanie, uc);
 
         // Step 2: Create assignments
         Assignment hw1 = new Assignment("HW 1", 100, "2025-04-30", "Homework", "Group A");
@@ -127,7 +263,7 @@ public class CourseView extends JFrame {
 
         // Step 5: Show CourseView with filled data
         SwingUtilities.invokeLater(() -> {
-            CourseView view = new CourseView(melanie, course);
+            CourseView view = new CourseView(melanie, course,tc);
 
             // === Fill Roster Table ===
             String[] rosterColumns = { "Name", "ID", "Email" };

@@ -25,6 +25,7 @@ public class Course {
     private final PropertyChangeSupport pcs = new PropertyChangeSupport(this);
 
 
+    
 
     // Constructor
     public Course(String name, String courseId, String semester, boolean useCategories) {

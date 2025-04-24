@@ -1,0 +1,13 @@
+{
+  "studentId": "1103897902",
+  "currentCourses": [],
+  "completedCourses": [],
+  "grades": {},
+  "finalGrades": {},
+  "firstName": "mike",
+  "lastName": "doe",
+  "email": "miked@arizona.edu",
+  "hashedPass": "$2a$10$ei/OgZYhVSrvlZQh6vGoEOjq4HIZHlB3LMxvdXzR1BT9Mn5VYV.Qe",
+  "username": "miked",
+  "role": "STUDENT"
+}

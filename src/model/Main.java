@@ -9,7 +9,7 @@ public class Main {
 		// TODO Auto-generated method stub
 		UserController controller = new UserController();
 		
-		User newUser= controller.createAccount("Harun", "Andeshmand", "andeshmand", "1234");
+		User newUser= controller.createAccount("Harun", "Andeshmand", "andeshmand", "1234",Role.STUDENT);
 			System.out.println(newUser);
 		
 		

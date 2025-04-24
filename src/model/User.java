@@ -10,14 +10,16 @@ public class User {
 	private String email;
 	private String hashedPass;
 	private String username;
+	private Role role;
 	
-	public User(String firstName, String lastName, String email, String pass, String username) {
+	public User(String firstName, String lastName, String email, String pass, String username, Role role) {
 		super();
 		this.firstName = firstName;
 		this.lastName = lastName;
 		this.email = email;
 		this.hashedPass = hashPassword(pass);
 		this.username = username;
+		this.role =role;
 	}
 	
 	public String getUsername() {

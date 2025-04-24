@@ -20,11 +20,12 @@ public class Student extends User {
     private final List<Course> completedCourses;
     private final Map<Assignment, Grade> grades;
     private final Map<Course, String> finalGrades;
-    private final PropertyChangeSupport pcs = new PropertyChangeSupport(this);
+    
+    private final transient PropertyChangeSupport pcs = new PropertyChangeSupport(this);
 
     // Constructor
     public Student(String firstName, String lastName, String email, String password, String username, String studentId) {
-        super(firstName, lastName, email, password, username);
+        super(firstName, lastName, email, password, username,Role.STUDENT);
         this.studentId = studentId;
         this.currentCourses = new ArrayList<>();
         this.completedCourses = new ArrayList<>();

@@ -48,6 +48,7 @@ public class MainView extends JFrame {
         return viewCourseButton;
     }
 
+    
     public JButton getLogoutButton() {
         return logoutButton;
     }

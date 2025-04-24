@@ -6,6 +6,7 @@ import model.Grade;
 import model.GradingCategory;
 import model.Student;
 import model.Teacher;
+import model.User;
 import model.grading.GradeCalculator;
 import model.GradeScale; // Needed for assignFinalGrade maybe
 
@@ -344,4 +345,15 @@ public class TeacherController {
          //assume it worked if no errors happened during the loop.
          return true;
      }
+     public Student getStudentByUsername(String username) {
+    	    if (userController == null || username == null || username.isEmpty()) {
+    	        return null;
+    	    }
+    	    User user = userController.findUserByUsername(username);
+    	    if (user instanceof Student) {
+    	        return (Student) user;
+    	    }
+    	    return null;
+    	}
+
 }

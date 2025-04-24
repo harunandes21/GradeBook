@@ -1,5 +1,6 @@
 package model;
 
+import java.beans.PropertyChangeSupport;
 import java.util.ArrayList;
 import java.util.List;
 import model.Course; 
@@ -24,6 +25,8 @@ public class Teacher extends User {
     // List to hold the Course objects the teacher teaches.
     // private avoids ESCAPING REFERENCES issues.
     private List<Course> coursesTaught;
+    private final transient PropertyChangeSupport pcs = new PropertyChangeSupport(this);
+
 
     //Consructor
     /**
@@ -41,7 +44,7 @@ public class Teacher extends User {
         String teacherSpecificId
     ) {
         // User constructor handles name, email, username, password hashing.
-        super(teacherFirstName, teacherLastName, teacherEmail, teacherPassword, teacherUsername);
+        super(teacherFirstName, teacherLastName, teacherEmail, teacherPassword, teacherUsername,Role.TEACHER);
 
         //set the teacher specific id.
         this.teacherId = teacherSpecificId;
