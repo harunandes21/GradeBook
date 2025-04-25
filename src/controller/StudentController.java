@@ -149,6 +149,26 @@ public class StudentController {
         this.currentCourse = course;
     }
     
+    /**
+     * Gets the final letter grade for a course
+     */
+    public String getFinalGradeForCourse(Course course) {
+        if (currentStudent == null || course == null) {
+            return null;
+        }
+        return currentStudent.getFinalGradeForCourse(course);
+    }
+    
+    /**
+     * Calculates the student's average in a specific course
+     */
+    public double calculateClassAverage(Course course) {
+        if (currentStudent == null || course == null) {
+            return 0.0;
+        }
+        return currentStudent.calculateClassAverage(course);
+    }
+    
     // --- Observer Pattern Support ---
 
     /**
