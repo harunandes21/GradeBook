@@ -38,14 +38,18 @@ public class UserController {
         User newUser = null;
         if (role == Role.STUDENT) {
             newUser = new Student(firstName, lastName, email, password, username, id);
-        } else if (role == Role.TEACHER) {
+        } 
+        
+        else if (role == Role.TEACHER) {
             newUser = new Teacher(firstName, lastName, email, password, username, id);
         }
 
         try (Writer writer = new FileWriter(file)) {
             gson.toJson(newUser, writer);
             return newUser;
-        } catch (IOException e) {
+        } 
+        
+        catch (IOException e) {
             e.printStackTrace();
             return null;
         }
@@ -61,12 +65,17 @@ public class UserController {
             String role = raw.get("role").getAsString();
             Gson gson = new Gson();
             User user = gson.fromJson(reader, User.class);
+            
             if (role.equals("STUDENT")) {
                 return gson.fromJson(raw, Student.class);
-            } else if (role.equals("TEACHER")) {
+            } 
+            
+            else if (role.equals("TEACHER")) {
                 return gson.fromJson(raw, Teacher.class);
             }
-        } catch (IOException e) {
+        } 
+        
+        catch (IOException e) {
             e.printStackTrace();
         }
         return null;
@@ -84,11 +93,14 @@ public class UserController {
     public User findUserByUsername(String username) {
         String fileName = getFileName(username);
         File file = new File(folderPath + "/" + fileName);
+        
         if (!file.exists()) return null;
 
         try (Reader reader = new FileReader(file)) {
             return gson.fromJson(reader, User.class);
-        } catch (IOException e) {
+        } 
+        
+        catch (IOException e) {
             e.printStackTrace();
             return null;
         }
