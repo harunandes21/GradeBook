@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 import model.grading.GradeCalculator;
+import model.grading.PointsBasedCalculator;
 
 import java.beans.PropertyChangeSupport;
 import java.beans.PropertyChangeListener;
@@ -25,7 +26,7 @@ public class Student extends User {
 
     // Constructor
     public Student(String firstName, String lastName, String email, String password, String username, String studentId) {
-        super(firstName, lastName, email, password, username,Role.STUDENT);
+        super(firstName, lastName, email, password, username, Role.STUDENT);
         this.studentId = studentId;
         this.currentCourses = new ArrayList<>();
         this.completedCourses = new ArrayList<>();
@@ -49,7 +50,7 @@ public class Student extends User {
     public Map<Assignment, Grade> getGrades() {
         return new HashMap<Assignment, Grade>(grades);
     }
-
+    
     /*
      * Enrolls the student in a course if not already enrolled
      */
@@ -66,15 +67,18 @@ public class Student extends User {
      */
     public void completeCourse(Course course) {
         if (currentCourses.contains(course)) {
-        	currentCourses.remove(course);
-            completedCourses.add(course);
-            
-            // Calculate and set final grade
-            double average = calculateClassAverage(course);
-            if (average > 0) {
-                String letterGrade = getLetterGrade(average);
-                finalGrades.put(course, letterGrade);
+            // Calculate average and set final grade BEFORE moving course
+            if (!finalGrades.containsKey(course)) {
+                double average = calculateClassAverage(course);
+                if (average > 0) {
+                    String letterGrade = getLetterGrade(average);
+                    finalGrades.put(course, letterGrade);
+                }
             }
+            
+            // Move course to completed
+            currentCourses.remove(course);
+            completedCourses.add(course);
             
             pcs.firePropertyChange("courseCompleted", null, course);
         }
@@ -124,15 +128,22 @@ public class Student extends User {
      * Calculates the student's average in a specific course
      */
     public double calculateClassAverage(Course theCourse) {
-        if (theCourse == null || !currentCourses.contains(theCourse)) {
+    	if (theCourse == null || !currentCourses.contains(theCourse)) {
             return 0.0;
         }
         
+        // Ensure calculator exists
         GradeCalculator calculator = theCourse.getGradeCalculator();
-        if (calculator != null) {
-            return calculator.calculateFinalAverage(theCourse, this);
+        if (calculator == null) {
+            calculator = new PointsBasedCalculator();
+            theCourse.setGradeCalculator(calculator);
         }
-        return 0.0;
+        
+        // Calculate average
+        double average = calculator.calculateFinalAverage(theCourse, this);
+        
+        // Ensure we don't return NaN or negative values
+        return average > 0 ? average : 0.0;
     }
     
     /*

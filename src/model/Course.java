@@ -24,9 +24,6 @@ public class Course {
     private GradeCalculator gradeCalculator;
     private final PropertyChangeSupport pcs = new PropertyChangeSupport(this);
 
-
-    
-
     // Constructor
     public Course(String name, String courseId, String semester, boolean useCategories) {
         if (name == null || courseId == null || semester == null) {
@@ -186,25 +183,19 @@ public class Course {
      * removes it from the list of course assignments.
      * removes it from its category (if categories are used).
      * removes it from every student’s grade so it doesn't mess up GPA or course averages later.
-     * 
      */
     public void removeAssignment(Assignment a) {
         if (a != null && assignments.contains(a)) {
+            // Remove from assignments list
             assignments.remove(a);
 
-            
+            // Remove from category if using categories
             if (useCategories && categories.containsKey(a.getCategoryName())) {
                 categories.get(a.getCategoryName()).removeAssignment(a);
             }
 
-            
-            Map<String, Grade> grades = a.getAllGrades();
-            for (String studentUsername : grades.keySet()) {
-                Student student = enrolledStudents.get(studentUsername);
-                if (student != null) {
-                    student.getGrades().remove(a); 
-                }
-            }
+            // Clear all grades for this assignment
+            a.clearAllGrades();
         }
     }
 

@@ -63,6 +63,13 @@ public class Assignment {
     public void markGraded() {
         this.isGraded = true;
     }
+    
+    /**
+     * Sets the graded status of this assignment
+     */
+    public void setGraded(boolean graded) {
+        this.isGraded = graded;
+    }
 
     /*
      * Adds a grade for a student
@@ -92,6 +99,13 @@ public class Assignment {
      */
     public Map<String, Grade> getAllGrades() {
         return new HashMap<String, Grade>(studentGrades);
+    }
+    
+    /*
+     * Clears all grades
+     */
+    public void clearAllGrades() {
+    	studentGrades.clear();
     }
 
     @Override

@@ -37,6 +37,10 @@ public class User {
     public String getEmail() {
         return email;
     }
+    
+    public Role getRole() {
+        return role;
+    }
 	
 	public boolean checkPassword(String inputPassword) {
         return BCrypt.checkpw(inputPassword, hashedPass);

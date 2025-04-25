@@ -73,6 +73,13 @@ public class StudentController {
         }
         return currentStudent.getCurrentCourses();
     }
+    
+    /**
+     * Gets the current course selected for grade viewing
+     */
+    public Course getCurrentCourse() {
+        return currentCourse;
+    }
 
     /**
      * Gets all grades for the current student in a specific course.

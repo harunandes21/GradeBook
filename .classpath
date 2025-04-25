@@ -8,5 +8,6 @@
 	</classpathentry>
 	<classpathentry kind="lib" path="jbcrypt-0.4.jar"/>
 	<classpathentry kind="lib" path="gson-2.8.9.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/5"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
