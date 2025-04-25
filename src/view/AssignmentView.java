@@ -9,6 +9,7 @@ import java.awt.event.*; // For listeners
 import java.time.LocalDate; // For date handling
 import java.time.format.DateTimeParseException; // For date errors
 import java.util.List; // For categories
+import java.util.Map;
 
 /**
  * This class AssignmentView is for showing or editing the details

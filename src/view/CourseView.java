@@ -4,6 +4,7 @@ import model.*;
 
 import javax.swing.*;
 
+import controller.MainController;
 import controller.TeacherController;
 import controller.UserController;
 
@@ -20,6 +21,8 @@ public class CourseView extends JFrame {
     private JButton addAssignmentButton;
     private JButton calcAverageButton;
     private TeacherController teacherController;
+    private User user;
+
 
 
     private JTable rosterTable;
@@ -31,6 +34,7 @@ public class CourseView extends JFrame {
     public CourseView(User user, Course course, TeacherController teacherController) {
         this.teacherController = teacherController;
         this.course = course;
+        this.user = user;
 
         setTitle("Course: " + course.getName());
         setSize(700, 500);
@@ -160,6 +164,71 @@ public class CourseView extends JFrame {
                 case "assignmentAdded" -> refreshAssignments(course);
             }
         });
+        
+        backButton.addActionListener(e -> {
+            dispose(); // Close this CourseView window
+
+            SwingUtilities.invokeLater(() -> {
+                List<String> courseNames;
+                if (user instanceof Teacher teacher) {
+                    courseNames = teacher.getCoursesTaught().stream().map(Course::getName).toList();
+                } else if (user instanceof Student student) {
+                    courseNames = student.getCurrentCourses().stream().map(Course::getName).toList();
+                } else {
+                    courseNames = List.of();
+                }
+
+                MainView mainView = new MainView(user.getFirstName() + " " + user.getLastName(), courseNames);
+
+                mainView.getLogoutButton().addActionListener(ev -> {
+                    mainView.dispose();
+                    new MainController().startApp(); // OPTIONAL: restart login flow
+                });
+
+                mainView.getViewCourseButton().addActionListener(ev -> {
+                    String selectedCourseName = mainView.getSelectedCourse();
+                    if (selectedCourseName == null || selectedCourseName.isEmpty()) {
+                        JOptionPane.showMessageDialog(mainView, "Please select a course.");
+                        return;
+                    }
+
+                    Course selectedCourse = null;
+                    if (user instanceof Teacher teacher) {
+                        for (Course c : teacher.getCoursesTaught()) {
+                            if (c.getName().equals(selectedCourseName)) {
+                                selectedCourse = c;
+                                break;
+                            }
+                        }
+                    } else if (user instanceof Student student) {
+                        for (Course c : student.getCurrentCourses()) {
+                            if (c.getName().equals(selectedCourseName)) {
+                                selectedCourse = c;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (selectedCourse != null) {
+                        mainView.dispose();
+                        if (user instanceof Teacher teacher) {
+                        	new CourseView(teacher, selectedCourse, teacherController).setVisible(true);
+
+                        }
+                    } else {
+                        JOptionPane.showMessageDialog(mainView, "Course data not found.");
+                    }
+                });
+
+                mainView.setVisible(true);
+            });
+        });
+
+
+        
+        refreshAssignmentTable(); // Fill assignments
+        refreshStudentTable();    // Fill students
+        refreshGradesTable();
     }
     private void refreshRoster(Course course) {
         if (rosterTable == null) return;
@@ -221,6 +290,63 @@ public class CourseView extends JFrame {
     public JButton getCalcAverageButton() {
         return calcAverageButton;
     }
+    
+    private void refreshAssignmentTable() {
+        if (assignmentTable == null) return;
+        List<Assignment> assignments = course.getAllAssignments();
+        String[][] data = new String[assignments.size()][3];
+        for (int i = 0; i < assignments.size(); i++) {
+            Assignment a = assignments.get(i);
+            data[i][0] = a.getName();
+            data[i][1] = a.getDueDate();
+            data[i][2] = String.valueOf(a.getPointsWorth());
+        }
+        String[] columnNames = {"Assignment", "Due Date", "Points"};
+        assignmentTable.setModel(new javax.swing.table.DefaultTableModel(data, columnNames));
+    }
+
+    private void refreshStudentTable() {
+        if (rosterTable == null) return;
+        List<Student> students = course.getEnrolledStudents();
+        String[][] data = new String[students.size()][3];
+        for (int i = 0; i < students.size(); i++) {
+            Student s = students.get(i);
+            data[i][0] = s.getFirstName() + " " + s.getLastName();
+            data[i][1] = s.getStudentId();
+            data[i][2] = s.getEmail();
+        }
+        String[] columnNames = {"Name", "Student ID", "Email"};
+        rosterTable.setModel(new javax.swing.table.DefaultTableModel(data, columnNames));
+    }
+
+    private void refreshGradesTable() {
+        if (gradeTable == null) return;
+        List<Student> students = course.getEnrolledStudents();
+        List<Assignment> assignments = course.getAllAssignments();
+        String[] columnNames = new String[assignments.size() + 1];
+        columnNames[0] = "Student";
+        for (int i = 0; i < assignments.size(); i++) {
+            columnNames[i + 1] = assignments.get(i).getName();
+        }
+
+        String[][] data = new String[students.size()][assignments.size() + 1];
+        for (int i = 0; i < students.size(); i++) {
+            Student student = students.get(i);
+            data[i][0] = student.getUsername();
+            for (int j = 0; j < assignments.size(); j++) {
+                Assignment assignment = assignments.get(j);
+                Grade grade = student.getGradeForAssignment(assignment);
+                if (grade != null) {
+                    data[i][j + 1] = String.valueOf(grade.getPointsEarned());
+                } else {
+                    data[i][j + 1] = "-"; // No grade yet
+                }
+            }
+        }
+
+        gradeTable.setModel(new javax.swing.table.DefaultTableModel(data, columnNames));
+    }
+
 
     public static void main(String[] args) {
         // Step 1: Create course and teacher

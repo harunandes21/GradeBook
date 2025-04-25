@@ -64,8 +64,7 @@ public class StudentImporter {
         boolean atLeastOneProcessed = false;
         // Use try with resources for the file reader. This makes sure the file
         // gets closed properly even if there are errors during reading.
-        t
-        ry (BufferedReader fileReader = new BufferedReader(new FileReader(filePath))) { // Needs imports
+        try (BufferedReader fileReader = new BufferedReader(new FileReader(filePath))) { // Needs imports
             String currentLine; // Will hold each line read from the file.
             int lineNumber = 0; // Keep track of line number for helpful messages.
             // Read lines until we hit the end of the file readLine returns null then.

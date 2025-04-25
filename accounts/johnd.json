@@ -1,0 +1,10 @@
+{
+  "teacherId": "1101303481",
+  "coursesTaught": [],
+  "firstName": "john",
+  "lastName": "doe",
+  "email": "johnd@arizona.edu",
+  "hashedPass": "$2a$10$ThFn2JT43zbS/dNGeGbcmOgNxw3TmVbYeEl0cxF9HArmDqPUAd.ze",
+  "username": "johnd",
+  "role": "TEACHER"
+}

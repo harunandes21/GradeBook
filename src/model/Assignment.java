@@ -117,7 +117,7 @@ public class Assignment {
     /**
      * Sets the graded status of this assignment
      */
-    public void setGraded(boolean graded) {
+    public void setGraded1(boolean graded) {
         this.isGraded = graded;
     }
 
