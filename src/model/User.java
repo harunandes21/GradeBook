@@ -50,11 +50,7 @@ public class User {
         return BCrypt.hashpw(password, BCrypt.gensalt());
     }
 
-	@Override
-	public String toString() {
-		return "User [firstName=" + firstName + ", lastName=" + lastName + ", email=" + email + ", hashedPass="
-				+ hashedPass + ", username=" + username + "]";
-	}
+	
 	
 	
 
