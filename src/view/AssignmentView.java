@@ -319,7 +319,7 @@ public class AssignmentView extends JDialog {
                 String groupName = null; // No group field in UI currently
                 try {
                     // Use the Assignment constructor needs categoryName String
-                    Assignment newAssignment = new Assignment(newId, name, points, dueDateStr, categoryName, groupName);
+                 Assignment newAssignment = new Assignment(name, points, dueDateStr, categoryName, groupName);
                     // Set description assume setter exists
                     newAssignment.setDescription(description); // TODO Verify Assignment.setDescription
                     // Set graded status assume setter exists
