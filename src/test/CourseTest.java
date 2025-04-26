@@ -23,11 +23,15 @@ public class CourseTest {
 
     @Before
     public void setUp() {
+    	// groups
+        Group group1 = new Group("Module1");
+        Group group2 = new Group("Module2"); 
+    	
         course = new Course("Data Structures", "CS201", "Fall 2023", false);
         student1 = new Student("Alice", "Smith", "alice@school.edu", "pass", "asmith", "1001");
         student2 = new Student("Bob", "Jones", "bob@school.edu", "pass", "bjones", "1002");
-        assignment1 = new Assignment("LinkedList Project", 100.0, "2023-10-10", "Projects", "Module2");
-        assignment2 = new Assignment("Quiz 1", 50.0, "2023-09-15", "Quizzes", "Module1");
+        assignment1 = new Assignment("LinkedList Project", 100.0, "2023-10-10", "Projects", group2);
+        assignment2 = new Assignment("Quiz 1", 50.0, "2023-09-15", "Quizzes", group1);
         category = new GradingCategory("Projects", 0.4, 1);
         
         // Mark assignments as graded
@@ -192,7 +196,8 @@ public class CourseTest {
         // Setup
         course.enrollStudent(student1);
         course.addAssignment(assignment1); // Graded
-        Assignment ungraded = new Assignment("Essay", 100.0, "2023-11-01", "Writing", "Module3");
+        Group group3 = new Group("Module3");
+        Assignment ungraded = new Assignment("Essay", 100.0, "2023-11-01", "Writing", group3);
         course.addAssignment(ungraded); // Not graded
         
         // Add grade only to assignment1
@@ -318,10 +323,13 @@ public class CourseTest {
         course = new Course("Algorithms", "CS301", "Spring 2024", true);
         course.addGradingCategory(new GradingCategory("Homework", 0.3, 1));
         course.addGradingCategory(new GradingCategory("Exams", 0.7, 0));
+        Group group4 = new Group("Group 4");
+        Group group5 = new Group("Group 5");
+
         
         // Add assignments to different categories
-        Assignment hw1 = new Assignment("HW1", 50.0, "2024-02-01", "Homework", "Week1");
-        Assignment exam1 = new Assignment("Midterm", 100.0, "2024-03-15", "Exams", "Midterm");
+        Assignment hw1 = new Assignment("HW1", 50.0, "2024-02-01", "Homework", group4);
+        Assignment exam1 = new Assignment("Midterm", 100.0, "2024-03-15", "Exams", group5);
         course.addAssignment(hw1);
         course.addAssignment(exam1);
         

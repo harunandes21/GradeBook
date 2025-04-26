@@ -6,7 +6,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects; // Needed for Objects.equals
+import java.util.Objects;
 
 import model.grading.GradeCalculator;
 import java.beans.PropertyChangeListener;
@@ -21,6 +21,8 @@ public class Course {
     private final String name;
     private final String courseId;
     private final String semester;
+    private final List<Group> groups = new ArrayList<>();
+    
     // map holds students enrolled, key is username string, value is Student object.
     private final Map<String, Student> enrolledStudents;
     // list holds all assignments defined for this course.
@@ -53,7 +55,7 @@ public class Course {
         this.categories = new HashMap<>();
     }
 
-    //getters
+  //getters
     // Gets course name string.
     public String getName() {
     	return name;
@@ -380,7 +382,7 @@ public class Course {
         for (Assignment a : this.assignments) {
             // Check if assignment group name matches the one requested. Use equals for exact match.
             // Assumes Assignment.getGroupName exists.
-            if (groupName.equals(a.getGroupName())) {
+            if (groupName.equals(a.getName())) {
                 groupAssignments.add(a);
             }
         }
@@ -544,6 +546,52 @@ public class Course {
         if (listener != null) {
             pcs.removePropertyChangeListener(listener);
         }
+    }
+    
+  //group stuff
+    /**
+     * Creates a new student group in this course
+     * @param groupName Unique name for the group
+     * @throws IllegalArgumentException if name exists or is invalid
+     */
+    public void createGroup(String groupName) {
+        if (groups.stream().anyMatch(g -> g.getGroupName().equalsIgnoreCase(groupName))) {
+            throw new IllegalArgumentException("Group name already exists");
+        }
+        groups.add(new Group(groupName));
+    }
+
+    /**
+     * Adds a student to a course group
+     * @param groupName Target group name
+     * @param student Student to add
+     * @return true if added successfully
+     */
+    public boolean addStudentToGroup(String groupName, Student student) {
+        Group group = groups.stream()
+            .filter(g -> g.getGroupName().equals(groupName))
+            .findFirst()
+            .orElse(null);
+        return group != null && group.addMember(student);
+    }
+
+    /**
+     * Gets all groups in this course
+     * @return Unmodifiable list of groups
+     */
+    public List<Group> getGroups() {
+        return Collections.unmodifiableList(groups);
+    }
+
+    /**
+     * Finds group by name
+     */
+    public Group findGroupByName(String groupName) {
+        if (groupName == null) return null;
+        return groups.stream()
+            .filter(g -> g.getGroupName().equals(groupName))
+            .findFirst()
+            .orElse(null);
     }
 
     //overrides

@@ -36,7 +36,7 @@ public class StudentTest {
 
     // Helper method to create standardized test assignments
     private Assignment createTestAssignment(String name, double points) {
-        Assignment assignment = new Assignment(name, points, "2023-10-01", "Test", "test");
+        Assignment assignment = new Assignment(name, points, "2023-10-01", "Test", null);
         assignment.markGraded();
         return assignment;
     }
@@ -298,7 +298,7 @@ public class StudentTest {
         course.setGradeCalculator(calculator);
         
         Assignment graded = createTestAssignment("Graded", 100);
-        Assignment ungraded = new Assignment("Ungraded", 100, "2023-10-01", "Test", "test");
+        Assignment ungraded = new Assignment("Ungraded", 100, "2023-10-01", "Test", null);
         ungraded.setGraded(false);
         
         course.addAssignment(graded);

@@ -49,13 +49,15 @@ class CategoryBasedCalculatorTest {
         // Add categories to the course
         categoryCourse.addGradingCategory(hwCategory);
         categoryCourse.addGradingCategory(quizCategory);
+        
+        Group group1 = new Group("Module1");
 
         // Make assignments, make sure categoryName matches category object name exactly
-        hw1 = new Assignment("HW1", 10.0, "d1", "Homework", "g"); // Score 8/10 = 80%
-        hw2 = new Assignment("HW2", 10.0, "d2", "Homework", "g"); // Score 6/10 = 60% (lowest)
-        hw3 = new Assignment("HW3", 10.0, "d3", "Homework", "g"); // Score 9/10 = 90%
-        q1 = new Assignment("Q1", 20.0, "d4", "Quizzes", "g");  // Score 18/20 = 90%
-        q2 = new Assignment("Q2", 20.0, "d5", "Quizzes", "g");  // Score 16/20 = 80%
+        hw1 = new Assignment("HW1", 10.0, "d1", "Homework", group1); // Score 8/10 = 80%
+        hw2 = new Assignment("HW2", 10.0, "d2", "Homework", group1); // Score 6/10 = 60% (lowest)
+        hw3 = new Assignment("HW3", 10.0, "d3", "Homework", group1); // Score 9/10 = 90%
+        q1 = new Assignment("Q1", 20.0, "d4", "Quizzes", group1);  // Score 18/20 = 90%
+        q2 = new Assignment("Q2", 20.0, "d5", "Quizzes", group1);  // Score 16/20 = 80%
 
         // Add assignments to the course (which also adds them to category if name matches)
         categoryCourse.addAssignment(hw1);

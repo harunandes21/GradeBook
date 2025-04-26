@@ -583,5 +583,31 @@ public class TeacherController {
          
          return null;
     	}
+     
+     /**
+      * Creates a group in specified course
+      * @param course Target course
+      * @param groupName Name for new group
+      * @return true if created successfully
+      */
+     public boolean createGroup(Course course, String groupName) {
+         try {
+             course.createGroup(groupName);
+             return true;
+         } catch (IllegalArgumentException e) {
+             return false;
+         }
+     }
+     
+     /**
+      * Adds student to a course group
+      * @param course Target course
+      * @param groupName Name of existing group
+      * @param student Student to add
+      * @return true if operation succeeded
+      */
+     public boolean addStudentToGroup(Course course, String groupName, Student student) {
+         return course.addStudentToGroup(groupName, student);
+     }
 
 }

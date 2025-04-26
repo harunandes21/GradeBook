@@ -21,9 +21,9 @@ public class GradingCategoryTest {
     @Before
     public void setUp() {
         category = new GradingCategory("Quizzes", 0.3, 1);
-        a1 = new Assignment("Quiz 1", 10, "2023-09-01", "Quizzes", "Week 1");
-        a2 = new Assignment("Quiz 2", 10, "2023-09-08", "Quizzes", "Week 2");
-        a3 = new Assignment("Quiz 3", 10, "2023-09-15", "Quizzes", "Week 3");
+        a1 = new Assignment("Quiz 1", 10, "2023-09-01", "Quizzes", null);
+        a2 = new Assignment("Quiz 2", 10, "2023-09-08", "Quizzes", null);
+        a3 = new Assignment("Quiz 3", 10, "2023-09-15", "Quizzes", null);
 
         a1.markGraded();
         a2.markGraded();
@@ -108,7 +108,7 @@ public class GradingCategoryTest {
      */
     @Test
     public void testAddAssignment() {
-        Assignment a4 = new Assignment("Quiz 4", 10, "2023-09-22", "Quizzes", "Week 4");
+        Assignment a4 = new Assignment("Quiz 4", 10, "2023-09-22", "Quizzes", null);
         category.addAssignment(a4);
         assertTrue("Assignment should be added", category.getAssignments().contains(a4));
     }
@@ -180,7 +180,7 @@ public class GradingCategoryTest {
     @Test
     public void testGetDroppedAssignmentsNoGrades() {
         GradingCategory empty = new GradingCategory("Empty", 0.3, 1);
-        Assignment newA = new Assignment("Unsubmitted", 10, "2023-10-01", "Empty", "Final");
+        Assignment newA = new Assignment("Unsubmitted", 10, "2023-10-01", "Empty", null);
         empty.addAssignment(newA);
         List<Assignment> dropped = empty.getDroppedAssignments(Collections.emptyMap());
         assertTrue("Should drop nothing when there are no grades", dropped.isEmpty());

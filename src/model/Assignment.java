@@ -2,12 +2,9 @@ package model;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.time.LocalDate; // Assuming we want real dates eventually
-import java.time.format.DateTimeFormatter; // For parsing/formatting dates
 
 /**
  * Represents a single assignment within a course like Hommework 1 or Midterm.
@@ -15,47 +12,51 @@ import java.time.format.DateTimeFormatter; // For parsing/formatting dates
  * Also holds the grades students received for it and calculates its own average/median.
  */
 public class Assignment {
-    // made fields not final anymore so they can be edited by setters
+    //made fields not final anymore so they can be edited by setters
     private String name;
     private double pointsWorth;
-    private String dueDate; // Keep as String for simplicity based on provided code, but LocalDate is better practice
-    private String categoryName; // Link by name, assumes Course manages category objects
-    private String groupName; // Added field for group assignments
+    private String dueDate;
+    private String categoryName;
+    private Group group;
     private boolean isGraded;
-    private String description; // Added description field
+    private String description;
 
-    // this Map called studentGrades is where the Assignment object keeps track
+    //this Map called studentGrades is where the Assignment object keeps track
     // of all the grades students have received for this specific assignment.
-    // Using username String as key, Grade object as value.
-    // private so only methods inside Assignment can change it directly, good encapsulation.
-    private Map<String, Grade> studentGrades;
+    // It uses the student's username, which is a String, as the key
+    // to look up the corresponding Grade object, which holds the points and feedback.
+    // So if we want student john123's grade for Homework 1, we look inside
+    // Homework 1's studentGrades map using the key 'john123'.
+    // Using a Map makes it fast to find a specific student's grade later.
+    //ENCAPSULATION EXAMPLE
+    // it's private so only methods inside Assignment can change it directly
+    private Map<String, Grade> studentGrades; // Key=Student Username, Value=Grade Object
 
     /**
      * constructor for making a new Assignment.
-     * Initializes fields, makes sure required ones are valid.
      */
-    public Assignment(String name, double pointsWorth, String dueDate, String categoryName, String groupName) {
-        // Check required inputs in constructor
+    public Assignment(String name, double pointsWorth, String dueDate, String categoryName, Group group) {
 		if (name == null || name.trim().isEmpty()) {
 		   throw new IllegalArgumentException("Assignment name cannot be null or empty");
 		}
+		
+        //check so we dont have non positive points
 		if (pointsWorth <= 0) {
 		   throw new IllegalArgumentException("Assignment points must be positive");
 		}
-		// Category name can be null or empty maybe default? Let's allow null for now.
-		// if (categoryName == null) {
-		//    throw new IllegalArgumentException("Assignment category cannot be null");
-		// }
+		
 
 		this.name = name.trim();
 		this.pointsWorth = pointsWorth;
-		this.dueDate = dueDate; // Store date as string for now
-		this.categoryName = categoryName; // Store category name string
-		this.groupName = groupName; // Store group name string
-		this.isGraded = false; // start it as not graded
-        this.description = ""; // Start with empty description
-		this.studentGrades = new HashMap<String, Grade>(); // map initialized empty
+		this.dueDate = dueDate; 
+		this.categoryName = categoryName;
+		this.group = group;
+		this.isGraded = false; //start it as not graded
+		this.description = "";
+		this.studentGrades = new HashMap<String, Grade>(); //,map initialized
+		
 	}
+    
 
     // --- Getters ---
 
@@ -81,9 +82,9 @@ public class Assignment {
         return categoryName;
     }
 
-    /** Gets the group name string */
-    public String getGroupName() {
-    	return groupName;
+    /** Gets the group */
+    public Group getGroup() {
+        return group;
     }
 
     /** checks if the assignment is marked as graded*/
@@ -162,8 +163,8 @@ public class Assignment {
      * Updates the assignment's group name string.
      * @param newGroupName The new group name string. Can be null or empty.
      */
-     public void setGroupName(String newGroupName) {
-         this.groupName = newGroupName;
+     public void setGroupName(Group newGroupName) {   // group isn't a string anymore
+         this.group = newGroupName;
           // TODO: Maybe fire observer event?
      }
 

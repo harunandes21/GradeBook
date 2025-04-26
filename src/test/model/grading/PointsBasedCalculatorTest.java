@@ -36,9 +36,9 @@ class PointsBasedCalculatorTest {
         // Make a student
         testStudent = new Student("Test", "Student", "ts@test.com", "pw", "test_student", "S999");
         // Make assignments
-        hw1 = new Assignment("HW1", 100.0, "somedate", "hw", "none");
-        hw2 = new Assignment("HW2", 50.0, "somedate", "hw", "none");
-        quiz1 = new Assignment("Quiz1", 20.0, "somedate", "quiz", "none");
+        hw1 = new Assignment("HW1", 100.0, "somedate", "hw", null);
+        hw2 = new Assignment("HW2", 50.0, "somedate", "hw", null);
+        quiz1 = new Assignment("Quiz1", 20.0, "somedate", "quiz", null);
 
         // IMPORTANT: Add assignments to the course so the calculator can find them
         testCourse.addAssignment(hw1);

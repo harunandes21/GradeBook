@@ -144,14 +144,19 @@ public class MainController {
         Course psy336 = new Course("PSY 336 - Cognitive Psychology", "PSY336", "Fall 2024", true);
         Course eng102 = new Course("ENG 102 - First Year Composition", "ENG102", "Fall 2024", true);
 
+        // groups
+        Group groupA = new Group("Group A");
+        Group groupB = new Group("Group B"); 
+        Group groupC = new Group("Group C");
+        Group groupD = new Group("Group D");
         
-        Assignment psyQuiz1 = new Assignment("Quiz 1", 50, "2024-09-10", "Quiz", "Group A");
-        Assignment psyHw1 = new Assignment("Homework 1", 100, "2024-09-20", "Homework", "Group A");
+        Assignment psyQuiz1 = new Assignment("Quiz 1", 50, "2024-09-10", "Quiz", groupA);
+        Assignment psyHw1 = new Assignment("Homework 1", 100, "2024-09-20", "Homework", groupA);
         psy336.addAssignment(psyQuiz1);
         psy336.addAssignment(psyHw1);
 
-        Assignment engEssay = new Assignment("Essay 1", 100, "2024-10-01", "Essay", "Group B");
-        Assignment engQuiz = new Assignment("Quiz 1", 50, "2024-10-05", "Quiz", "Group B");
+        Assignment engEssay = new Assignment("Essay 1", 100, "2024-10-01", "Essay", groupB);
+        Assignment engQuiz = new Assignment("Quiz 1", 50, "2024-10-05", "Quiz", groupB);
         eng102.addAssignment(engEssay);
         eng102.addAssignment(engQuiz);
 
@@ -190,26 +195,32 @@ public class MainController {
         Course psy336 = new Course("PSY 336 - Cognitive Psychology", "PSY336", "Fall 2024", true);
         Course eng102 = new Course("ENG 102 - First Year Composition", "ENG102", "Fall 2024", true);
 
+        // groups
+        Group groupA = new Group("Group A");
+        Group groupB = new Group("Group B"); 
+        Group groupC = new Group("Group C");
+        Group groupD = new Group("Group D");
+        
         // Assignments for CSC 335
-        Assignment project1 = new Assignment("Project 1", 100, "2025-03-01", "Project", "Group C");
-        Assignment midterm = new Assignment("Midterm Exam", 100, "2025-03-15", "Exam", "Group C");
+        Assignment project1 = new Assignment("Project 1", 100, "2025-03-01", "Project", groupC);
+        Assignment midterm = new Assignment("Midterm Exam", 100, "2025-03-15", "Exam", groupC);
         csc335.addAssignment(project1);
         csc335.addAssignment(midterm);
 
         // Assignments for MATH 101
-        Assignment mathQuiz1 = new Assignment("Quiz 1", 50, "2025-02-10", "Quiz", "Group D");
-        Assignment mathFinal = new Assignment("Final Exam", 100, "2025-05-05", "Exam", "Group D");
+        Assignment mathQuiz1 = new Assignment("Quiz 1", 50, "2025-02-10", "Quiz", groupD);
+        Assignment mathFinal = new Assignment("Final Exam", 100, "2025-05-05", "Exam", groupD);
         math101.addAssignment(mathQuiz1);
         math101.addAssignment(mathFinal);
 
         // Assignments for completed courses
-        Assignment psyQuiz1 = new Assignment("Quiz 1", 50, "2024-09-10", "Quiz", "Group A");
-        Assignment psyHw1 = new Assignment("Homework 1", 100, "2024-09-20", "Homework", "Group A");
+        Assignment psyQuiz1 = new Assignment("Quiz 1", 50, "2024-09-10", "Quiz", groupA);
+        Assignment psyHw1 = new Assignment("Homework 1", 100, "2024-09-20", "Homework", groupA);
         psy336.addAssignment(psyQuiz1);
         psy336.addAssignment(psyHw1);
 
-        Assignment engEssay = new Assignment("Essay 1", 100, "2024-10-01", "Essay", "Group B");
-        Assignment engQuiz = new Assignment("Quiz 1", 50, "2024-10-05", "Quiz", "Group B");
+        Assignment engEssay = new Assignment("Essay 1", 100, "2024-10-01", "Essay", groupB);
+        Assignment engQuiz = new Assignment("Quiz 1", 50, "2024-10-05", "Quiz", groupB);
         eng102.addAssignment(engEssay);
         eng102.addAssignment(engQuiz);
 
@@ -243,9 +254,28 @@ public class MainController {
         student.addGrade(engQuiz, new Grade(48, "Almost full marks"));
     }
 
+    // Helper for group management
+    private Group getOrCreateGroup(Course course, String groupName) {
+        if (groupName == null) return null;
+        
+        // Check if group already exists
+        for (Group g : course.getGroups()) {
+            if (g.getGroupName().equalsIgnoreCase(groupName)) {
+                return g;
+            }
+        }
+        
+        // Create new group if not found
+        Group newGroup = new Group(groupName);
+        course.getGroups().add(newGroup);
+        return newGroup;
+    }
 
-
-
+    /* Can use the method above like so: 
+     * Group selectedGroup = getOrCreateGroup(course, "Group X");
+     * Assignment newAssignment = new Assignment("New Work", 100, "2025-06-01", "Project", selectedGroup);
+     * 
+     */
 
 
     public static void main(String[] args) {

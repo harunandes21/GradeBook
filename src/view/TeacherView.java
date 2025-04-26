@@ -40,6 +40,8 @@ public class TeacherView extends JFrame implements PropertyChangeListener {
     private JComboBox<Course> courseComboBox;
     private JTable studentTable;
     private JTable assignmentTable;
+    private JButton createGroupBtn = new JButton("Create Group");
+    private JComboBox<String> groupsCombo = new JComboBox<>();
     private JButton addAssignmentButton;
     private JButton removeAssignmentButton;
     private JButton editAssignmentButton;
@@ -91,6 +93,12 @@ public class TeacherView extends JFrame implements PropertyChangeListener {
         courseComboBox = new JComboBox<>();
         updateCourseList(); // Fill the dropdown initially
         topPanel.add(courseComboBox);
+        
+        // Add group components
+        topPanel.add(new JLabel("Groups:"));
+        topPanel.add(groupsCombo);
+        topPanel.add(createGroupBtn);
+        
         refreshDataButton = new JButton("Refresh Current View");
         topPanel.add(refreshDataButton);
         this.add(topPanel, BorderLayout.NORTH);
@@ -191,9 +199,6 @@ public class TeacherView extends JFrame implements PropertyChangeListener {
         if (!haveController) return; // Need controller
         Object previouslySelected = courseComboBox.getSelectedItem(); // Remember selection
 
-        // Remove listener from old courses? Maybe not needed if objects are reused.
-        // For now, just re-add listener below.
-
         courseComboBox.removeAllItems(); // Clear dropdown
         List<Course> courses = teacherController.viewCourses(); // Get current list
 
@@ -214,6 +219,23 @@ public class TeacherView extends JFrame implements PropertyChangeListener {
         } else if (courseComboBox.getItemCount() > 0) {
              // If previous selection gone or none existed, select the first one
              courseComboBox.setSelectedIndex(0);
+        }
+        
+        // Update groups combo when course list changes
+        updateGroupsCombo();
+    }
+
+    /**
+     * Helper method for updating groups combo box
+     */
+    private void updateGroupsCombo() {
+        groupsCombo.removeAllItems();
+        Course selectedCourse = (Course) courseComboBox.getSelectedItem();
+        if (selectedCourse != null) {
+            List<Group> groups = selectedCourse.getGroups();
+            for (Group group : groups) {
+                groupsCombo.addItem(group.getGroupName());
+            }
         }
     }
 
@@ -244,6 +266,9 @@ public class TeacherView extends JFrame implements PropertyChangeListener {
 
         // Update Assignment Table based on filter state
         updateAssignmentTable(selectedCourse);
+        
+        // Update groups combo when course changes
+        updateGroupsCombo();
     }
 
     /**
@@ -253,10 +278,33 @@ public class TeacherView extends JFrame implements PropertyChangeListener {
      */
     private void addActionListeners() {
         // When course dropdown changes, reload all data for that course
-        courseComboBox.addActionListener(e -> displaySelectedCourseData());
+        courseComboBox.addActionListener(e -> {
+            displaySelectedCourseData();
+            updateGroupsCombo();
+        });
 
         // Refresh button just reloads data for current course
         refreshDataButton.addActionListener(e -> displaySelectedCourseData());
+
+        // Create Group button
+        createGroupBtn.addActionListener(e -> {
+            Course selectedCourse = (Course) courseComboBox.getSelectedItem();
+            if (selectedCourse == null) {
+                showError("Please select a course first.");
+                return;
+            }
+            
+            // Create group
+            String name = JOptionPane.showInputDialog(this, "Enter group name:");
+            if (name != null && !name.trim().isEmpty()) {
+                if (teacherController.createGroup(selectedCourse, name)) {
+                    groupsCombo.addItem(name);
+                    showInfo("Group created successfully!");
+                } else {
+                    showError("Invalid group name or group already exists");
+                }
+            }
+        });
 
         // Sort students button: sort by last name A-Z, update table
         sortStudentsByNameButton.addActionListener(e -> {
@@ -349,10 +397,57 @@ public class TeacherView extends JFrame implements PropertyChangeListener {
             if (selectedCourse == null) { showError("Select a course first."); return; }
             // Need the AssignmentController
             if (assignmentController == null) { showError("AssignmentController missing."); return; }
-            // Create AssignmentView dialog, pass null for assignment to indicate new
-            AssignmentView assignmentDialog = new AssignmentView(this, assignmentController, teacherController, selectedCourse, null);
-            assignmentDialog.setVisible(true); // Show the popup dialog
-            // After dialog closes, the Observer pattern should update the assignment table if save worked
+            
+            // Create a dialog for assignment details with group option
+            JPanel panel = new JPanel(new GridLayout(0, 2));
+            JTextField nameField = new JTextField();
+            JTextField pointsField = new JTextField();
+            JTextField dueDateField = new JTextField();
+            JTextField categoryField = new JTextField();
+            JCheckBox groupCheckbox = new JCheckBox("Is this a group assignment?");
+            
+            panel.add(new JLabel("Assignment Name:"));
+            panel.add(nameField);
+            panel.add(new JLabel("Points Worth:"));
+            panel.add(pointsField);
+            panel.add(new JLabel("Due Date (YYYY-MM-DD):"));
+            panel.add(dueDateField);
+            panel.add(new JLabel("Category:"));
+            panel.add(categoryField);
+            panel.add(new JLabel("Group Assignment:"));
+            panel.add(groupCheckbox);
+            
+            int result = JOptionPane.showConfirmDialog(this, panel, 
+                "Create New Assignment", JOptionPane.OK_CANCEL_OPTION);
+            
+            if (result == JOptionPane.OK_OPTION) {
+                try {
+                    String name = nameField.getText();
+                    double points = Double.parseDouble(pointsField.getText());
+                    String dueDate = dueDateField.getText();
+                    String category = categoryField.getText();
+                    
+                    Group group = null;
+                    if (groupCheckbox.isSelected() && groupsCombo.getSelectedItem() != null) {
+                        String groupName = (String) groupsCombo.getSelectedItem();
+                        group = selectedCourse.getGroups().stream()
+                            .filter(g -> g.getGroupName().equals(groupName))
+                            .findFirst()
+                            .orElse(null);
+                    }
+                    
+                    Assignment newAssignment = new Assignment(name, points, dueDate, category, group);
+                    if (teacherController.addAssignmentToCourse(newAssignment, selectedCourse)) {
+                        displaySelectedCourseData();
+                    } else {
+                        showError("Failed to add assignment");
+                    }
+                } catch (NumberFormatException ex) {
+                    showError("Invalid points value");
+                } catch (IllegalArgumentException ex) {
+                    showError(ex.getMessage());
+                }
+            }
         });
 
         // Edit Assignment button: opens AssignmentView dialog for editing
@@ -364,7 +459,7 @@ public class TeacherView extends JFrame implements PropertyChangeListener {
              boolean canEdit = (selectedCourse != null && selectedAssignment != null && assignmentController != null);
              if (canEdit) {
                  // Create and show the AssignmentView dialog, passing the assignment to edit
-                 AssignmentView editDialog = new AssignmentView(this, assignmentController, teacherController, selectedCourse, selectedAssignment);
+                 AssignmentView editDialog = new AssignmentView(this, assignmentController, teacherController, selectedCourse, selectedAssignment, groupsCombo);
                  editDialog.setVisible(true);
                  // Observer pattern should update this view if save was successful inside dialog
              } else {
@@ -700,8 +795,9 @@ public class TeacherView extends JFrame implements PropertyChangeListener {
             if ("studentEnrolled".equals(propertyThatChanged) ||
                 "studentRemoved".equals(propertyThatChanged) ||
                 "assignmentAdded".equals(propertyThatChanged) ||
-                "assignmentRemoved".equals(propertyThatChanged) ) {
-                // If students or assignments changed in this course, refresh needed
+                "assignmentRemoved".equals(propertyThatChanged) ||
+                "groupAdded".equals(propertyThatChanged)) {
+                // If students, assignments or groups changed in this course, refresh needed
                 needsRefresh = true;
                 System.out.println("Course structure changed, flagging refresh");
             }
@@ -772,5 +868,6 @@ public class TeacherView extends JFrame implements PropertyChangeListener {
     public JButton getCalculateAssignmentStatsButton() { return calculateAssignmentStatsButton; }
     public JButton getAssignFinalGradeButton() { return assignFinalGradeButton; }
     public JButton getRefreshDataButton() { return refreshDataButton; }
-
+    public JButton getCreateGroupBtn() { return createGroupBtn; }
+    public JComboBox<String> getGroupsCombo() { return groupsCombo; }
 }
