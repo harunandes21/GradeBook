@@ -2,9 +2,12 @@ package model;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.time.LocalDate; // Assuming we want real dates eventually
+import java.time.format.DateTimeFormatter; // For parsing/formatting dates
 
 /**
  * Represents a single assignment within a course like Hommework 1 or Midterm.
@@ -12,52 +15,49 @@ import java.util.Map;
  * Also holds the grades students received for it and calculates its own average/median.
  */
 public class Assignment {
-    //made fields not final anymore so they can be edited by setters
+    // made fields not final anymore so they can be edited by setters
     private String name;
     private double pointsWorth;
-    private String dueDate;
-    private String categoryName;
-    private String groupName;
+    private String dueDate; // Keep as String for simplicity based on provided code, but LocalDate is better practice
+    private String categoryName; // Link by name, assumes Course manages category objects
+    private String groupName; // Added field for group assignments
     private boolean isGraded;
+    private String description; // Added description field
 
-    //this Map called studentGrades is where the Assignment object keeps track
+    // this Map called studentGrades is where the Assignment object keeps track
     // of all the grades students have received for this specific assignment.
-    // It uses the student's username, which is a String, as the key
-    // to look up the corresponding Grade object, which holds the points and feedback.
-    // So if we want student john123's grade for Homework 1, we look inside
-    // Homework 1's studentGrades map using the key 'john123'.
-    // Using a Map makes it fast to find a specific student's grade later.
-    //ENCAPSULATION EXAMPLE
-    // it's private so only methods inside Assignment can change it directly
-    private Map<String, Grade> studentGrades; // Key=Student Username, Value=Grade Object
+    // Using username String as key, Grade object as value.
+    // private so only methods inside Assignment can change it directly, good encapsulation.
+    private Map<String, Grade> studentGrades;
 
     /**
      * constructor for making a new Assignment.
+     * Initializes fields, makes sure required ones are valid.
      */
     public Assignment(String name, double pointsWorth, String dueDate, String categoryName, String groupName) {
-		if (name == null || name.isEmpty()) {
+        // Check required inputs in constructor
+		if (name == null || name.trim().isEmpty()) {
 		   throw new IllegalArgumentException("Assignment name cannot be null or empty");
 		}
-		
-        //check so we dont have non positive points
 		if (pointsWorth <= 0) {
 		   throw new IllegalArgumentException("Assignment points must be positive");
 		}
-		
-		if (categoryName == null) {
-		   throw new IllegalArgumentException("Assignment category cannot be null");
-		}
+		// Category name can be null or empty maybe default? Let's allow null for now.
+		// if (categoryName == null) {
+		//    throw new IllegalArgumentException("Assignment category cannot be null");
+		// }
 
-		this.name = name;
+		this.name = name.trim();
 		this.pointsWorth = pointsWorth;
-		this.dueDate = dueDate; 
-		this.categoryName = categoryName;
-		this.groupName = groupName;
-		this.isGraded = false; //start it as not graded
-		this.studentGrades = new HashMap<String, Grade>(); //,map initialized
+		this.dueDate = dueDate; // Store date as string for now
+		this.categoryName = categoryName; // Store category name string
+		this.groupName = groupName; // Store group name string
+		this.isGraded = false; // start it as not graded
+        this.description = ""; // Start with empty description
+		this.studentGrades = new HashMap<String, Grade>(); // map initialized empty
 	}
 
-    //Getters
+    // --- Getters ---
 
     /** Gets the assignment's name. */
     public String getName() {
@@ -69,8 +69,10 @@ public class Assignment {
         return pointsWorth;
     }
 
-    /** Gets the due date string. */
+    /** Gets the due date string. Returns null if not set. */
     public String getDueDate() {
+        // Maybe parse this to LocalDate if needed elsewhere?
+        // For now just return the stored string.
         return dueDate;
     }
 
@@ -88,67 +90,82 @@ public class Assignment {
     public boolean isGraded() {
         return isGraded;
     }
-    
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (obj == null || getClass() != obj.getClass()) return false;
-        Assignment that = (Assignment) obj;
-        return this.name.equals(that.name); 
+
+    /** Gets the assignment description */
+    public String getDescription() {
+        return description;
     }
 
-    @Override
-    public int hashCode() {
-        return name.hashCode();
-    }
-
-
-    //Setters, needed by controllers
+    // --- Setters, needed by controllers ---
 
     /**
      * Updates the assignment's name with a new value
      * checks to make sure the new name isnt null or empty.
-     * 
      * @param newAssignmentName The new name to assign.
      */
     public void setAssignmentName(String newAssignmentName) {
         boolean isNameProvided = newAssignmentName != null;
         boolean isNameNotEmpty = false;
-        
         if (isNameProvided) {
             String trimmedName = newAssignmentName.trim();
             isNameNotEmpty = !trimmedName.isEmpty();
-            
             if (isNameNotEmpty) {
                 this.name = trimmedName;
+                // TODO: Maybe fire observer event if Assignment becomes observable?
                 return;
             }
         }
-        
-        System.out.println("Assignment warning: attempted to set an empty or null assignment name.");
+        // If name was null or empty, don't change it, print warning.
+        System.out.println("Assignment warning: setAssignmentName ignored empty or null name.");
     }
-    
-    /**
-     * Sets the graded status of this assignment
-     */
-    public void setGraded1(boolean graded) {
-        this.isGraded = graded;
-    }
-
 
     /**
 	 * Updates the num of points this assignment is worth.
-	 * error if provided value is negative,
-	 * since assignments cant be worth negative points
-     * @param pointsWorth The new points value double.
+	 * throws error if provided value is negative,
+	 * since assignments cant be worth negative points.
+     * @param points The new points value double.
      */
-    public void setPointsPossible(double pointsWorth) {
-        if (pointsWorth < 0) {
-            throw new IllegalArgumentException("Assignment points must be not negative");
+    public void setPointsPossible(double points) {
+        // Check if points are valid non negative.
+        if (points < 0) {
+            // Throw error to signal bad input from controller/view.
+            throw new IllegalArgumentException("Assignment points must be non negative");
         }
-        
-        this.pointsWorth = pointsWorth;
+        // If okay, update the value.
+        this.pointsWorth = points;
+        // TODO: Maybe fire observer event?
     }
+
+    /**
+     * Updates the assignment's due date string.
+     * TODO: Add validation later to ensure YYYY-MM-DD format maybe?
+     * @param newDueDate The new due date string.
+     */
+     public void setDueDate(String newDueDate) {
+         // Store the string directly for now.
+         this.dueDate = newDueDate;
+         // TODO: Maybe fire observer event?
+     }
+
+     /**
+     * Updates the assignment's category name string.
+     * @param newCategoryName The new category name string. Can be null or empty maybe?
+     */
+     public void setCategoryName(String newCategoryName) {
+         // Store the name string. Allows unsetting category maybe?
+         this.categoryName = newCategoryName;
+          // TODO: Maybe fire observer event?
+          // TODO: If model changes to store GradingCategory object, need setCategory(GradingCategory c) instead.
+     }
+
+     /**
+     * Updates the assignment's group name string.
+     * @param newGroupName The new group name string. Can be null or empty.
+     */
+     public void setGroupName(String newGroupName) {
+         this.groupName = newGroupName;
+          // TODO: Maybe fire observer event?
+     }
 
     /**
      * setGraded allows setting the graded status true or false.
@@ -156,98 +173,129 @@ public class Assignment {
      * @param graded The new boolean status.
      */
      public void setGraded(boolean graded) {
+         // Check if status is actually changing before firing event maybe?
+         // boolean changed = (this.isGraded != graded);
          this.isGraded = graded;
+         // TODO: Fire observer event if changed?
+         // if (changed) pcs.firePropertyChange("isGraded", !graded, graded);
      }
 
-    //grade management
+    /**
+     * Updates the assignment's description text.
+     * @param newDescription The new description string.
+     */
+    public void setDescription(String newDescription) {
+        this.description = newDescription;
+        // TODO: Maybe fire observer event?
+    }
 
-     /*
-      * Marks this assignment as graded
+    // --- Grade Management ---
+
+     /**
+      * Marks this assignment as graded true. Simple helper.
       */
      public void markGraded() {
-         this.isGraded = true;
+         this.setGraded(true); // Use the setter maybe for consistency/events
      }
 
-    /*
-     * Adds a grade for a student
+    /**
+     * Adds or updates a grade for a specific student for this assignment.
+     * Stores the Grade object in the internal map using the username as key.
+     * @param studentUsername The username String key.
+     * @param grade The Grade object value points/feedback.
      */
     public void addGrade(String studentUsername, Grade grade) {
-        if (studentUsername != null && !studentUsername.isEmpty()) {
+        // Check username is valid before using as key.
+        boolean usernameOk = (studentUsername != null && !studentUsername.isEmpty());
+        // Grade can technically be null maybe if teacher wants to remove grade?
+        // Let's assume grade is not null for adding/updating here.
+        boolean gradeOk = (grade != null);
+        if (usernameOk && gradeOk) {
+            // Put replaces existing value if key already there.
             studentGrades.put(studentUsername, grade);
+            // TODO: Maybe fire observer event specific to this assignment?
+        } else {
+             System.out.println("Assignment problem: addGrade got null username or grade for assignment " + this.name);
         }
     }
 
-    /*
-     * Gets a student's grade for this assignment
+    /**
+     * Gets a specific student's grade object for this assignment.
+     * Looks it up in the internal map using the username.
+     * @param studentUsername The username String key.
+     * @return The Grade object, or null if no grade stored for that student.
      */
     public Grade getGrade(String studentUsername) {
-        // Check input username
+        // Check input username is valid.
         boolean usernameOk = (studentUsername != null && !studentUsername.isEmpty());
         if (!usernameOk) {
-            return null;
+            return null; // Can't look up grade for invalid username.
         }
-        //get the grade from the map using the username.
+        // Get the grade from the map using the username key. Returns null if not found.
         return studentGrades.get(studentUsername);
     }
 
     /**
-     * hasSubmission checks if a student has any grade for this assignment.
-     * checks if the username key exists in the grades map.
+     * hasSubmission checks if a student has any grade recorded for this assignment.
+     * Just checks if the username key exists in the internal grades map.
+     * @param studentUsername The username String key.
+     * @return true if a grade entry exists, false otherwise.
      */
     public boolean hasSubmission(String studentUsername) {
-
+        // Check username is valid.
         boolean usernameOk = (studentUsername != null && !studentUsername.isEmpty());
         if (!usernameOk) {
             return false;
         }
-        //check if the map has an entry for this username
-        // returns true if a grade exists for the student, false otherwise.
+        // Check if the map contains an entry for this username key.
         return studentGrades.containsKey(studentUsername);
     }
 
-    /*
-     * Returns a copy of all grades for this assignment
-     * EXAMPLE OF ENCAPSULATION since returning a copy prevents outside code from changing
-     * the assignment's internal map.
+    /**
+     * Returns a copy of all grades map for this assignment.
+     * EXAMPLE OF ENCAPSULATION Returning a copy prevents changing internal map.
+     * @return A new Map<String, Grade> copy.
      */
     public Map<String, Grade> getAllGrades() {
-        //create a new HashMap, copy all entries from the internal map into it.
+        // Create a new HashMap and copy all entries from the internal map into it.
         return new HashMap<String, Grade>(this.studentGrades);
     }
-    
-    /*
-     * Clears all grades
+
+    /**
+     * Clears all grades stored within this assignment.
+     * Used by Course.removeAssignment to clean up.
      */
     public void clearAllGrades() {
     	studentGrades.clear();
+        System.out.println("Assignment info: Cleared all grades for assignment " + this.name);
+        // TODO: Maybe fire event?
     }
 
-    //Calculations we moved from controller
+    // --- Calculations moved from controller ---
 
     /**
      * calculateAverageScore calculates the average score for this assignment
-     * based on all the grades currently stored inside.
-     * It gets all the grades, loops, sums, counts, and divides.
+     * based on all the grades currently stored inside it.
+     * Gets all the grades, loops, sums, counts, and divides.
      * @return The average score as a double, 0.0 if no grades.
      */
     public double calculateAverageScore() {
-        //get the internal map of grades. Not copying it since we're just reading it
+        // Get the internal map of grades directly.
         Map<String, Grade> currentGrades = this.studentGrades;
-        
+
+        // Check if map is null or empty.
         boolean anyGradesExist = (currentGrades != null && !currentGrades.isEmpty());
         if (!anyGradesExist) {
-            //with no grades, average would bes 0.
-            return 0.0;
+            return 0.0; // No grades, average is 0.
         }
 
-        //variables for calculation
+        //variables for calculation.
         double sumOfScores = 0.0;
         int numberOfGrades = 0;
-        
-        //loop through the Grade objects in the map's values
+
+        //loop through the Grade objects values in the map.
         for (Grade grade : currentGrades.values()) {
-            
-        	//check grade object valid
+        	//check grade object valid.
             boolean gradeIsValid = (grade != null);
             if (gradeIsValid) {
                 sumOfScores = sumOfScores + grade.getPointsEarned();
@@ -261,45 +309,44 @@ public class Assignment {
         if (canCalculate) {
             averageResult = sumOfScores / numberOfGrades;
         }
-        
+
         return averageResult;
     }
 
     /**
      * calculateMedianScore calculates the median score for this assignment.
-     * It gets all the grades, extracts the scores, sorts them, finds the middle value.
+     * It gets all the grades, extracts the scores into a list,
+     * sorts the list, then finds the middle value or averages the two middle values.
      * @return The median score as a double, or 0.0 if no grades.
      */
      public double calculateMedianScore() {
-        //get the internal map of grades
+        //get the internal map of grades.
         Map<String, Grade> currentGrades = this.studentGrades;
-        
+
         //check if any grades exist.
         boolean anyGradesExist = (currentGrades != null && !currentGrades.isEmpty());
-        
         if (!anyGradesExist) {
             return 0.0;
         }
 
-        //make a list to hold just the score numbers
+        //make a list to hold just the score numbers.
         List<Double> scoresList = new ArrayList<>();
-        
-        //loop through grades, add valid scores to the list
+
+        //loop through grades, add valid scores to the list.
         for (Grade grade : currentGrades.values()) {
              boolean gradeIsValid = (grade != null);
-             
              if (gradeIsValid) {
                  scoresList.add(grade.getPointsEarned());
              }
         }
 
-        //check if list ended up empty
+        //check if list ended up empty after loop maybe grades were null.
         boolean haveScoresToList = !scoresList.isEmpty();
         if (!haveScoresToList) {
-             return 0.0; // Return 0 if no valid scores found
+             return 0.0; // Return 0 if no valid scores found.
         }
 
-        //sort the scores low to high
+        //sort the scores low to high.
         Collections.sort(scoresList);
 
         //find the median value.
@@ -309,17 +356,14 @@ public class Assignment {
 
         if (isEvenNumberOfScores) {
             //if even number, average the 2 middle scores.
+            // Need to handle case of only 0 or 1 score? sort handles 1. If 0, list empty check above catches it.
             int middleIndex1 = numberOfScores / 2 - 1;
             int middleIndex2 = numberOfScores / 2;
-            
             double middleScore1 = scoresList.get(middleIndex1);
             double middleScore2 = scoresList.get(middleIndex2);
-            
             medianScoreResult = (middleScore1 + middleScore2) / 2.0;
-        } 
-        
-        else {
-            // If odd number, median is the middle score.
+        } else {
+            // If odd number, median is the middle score. Index is size / 2.
             int middleIndex = numberOfScores / 2;
             medianScoreResult = scoresList.get(middleIndex);
         }
@@ -327,11 +371,40 @@ public class Assignment {
      }
 
     /**
-     * toString gives a text summary of the assignment
+     * equals method to compare assignments. Based only on name for simplicity now maybe?
+     * Or maybe name + course? Just name for now.
+     * Important for checking if assignment already exists in lists/maps.
+     */
+    @Override
+    public boolean equals(Object obj) {
+        // Standard equals checks: same object, null, different class.
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        // Cast object to Assignment.
+        Assignment otherAssignment = (Assignment) obj;
+        // Compare based on the name field using String's equals.
+        // Make sure name field isn't null maybe? Constructor checks it.
+        return this.name.equals(otherAssignment.name);
+    }
+
+    /**
+     * hashCode method. Must override if equals is overridden.
+     * Base it on the same fields used in equals, which is just name right now.
+     */
+    @Override
+    public int hashCode() {
+        // Use the String's hashCode method on the name field.
+        // Check for null first maybe? Constructor checks name not null.
+        return name.hashCode();
+    }
+
+    /**
+     * toString gives a text summary of the assignment.
+     * Includes name, points, due date, category, graded status.
      */
     @Override
     public String toString() {
-        // string showing key details.
+        // build string showing key details.
         return "Assignment [name=" + name + ", points=" + pointsWorth + ", due=" + dueDate +
                 ", category=" + categoryName + ", graded=" + isGraded + "]";
     }

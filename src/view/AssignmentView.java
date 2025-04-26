@@ -1,68 +1,75 @@
 package view;
 
-import model.*; // Need Assignment, GradingCategory
+import model.*; // Need Assignment, GradingCategory, Course
 import controller.AssignmentController; // Need controller for actions
+import controller.TeacherController; // Needed for creating NEW assignments
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*; // For listeners
-import java.time.LocalDate; // For date handling
-import java.time.format.DateTimeParseException; // For date errors
+// import java.time.LocalDate; // Using String for date for now based on model
+// import java.time.format.DateTimeParseException; // Need for real date parsing
 import java.util.List; // For categories
-import java.util.Map;
+import java.util.Map; // For categories
+import java.util.Comparator; // For sorting categories maybe
+import java.util.ArrayList; // For sorting categories maybe
 
 /**
  * This class AssignmentView is for showing or editing the details
- * of one single assignment. Could be opened from TeacherView.
+ * of one single assignment. Used as a popup dialog from TeacherView.
  * Has fields for name, points, due date, category, graded status, description.
+ * Connects Save button to AssignmentController or TeacherController.
  */
-public class AssignmentView extends JDialog { // Changed to JDialog for popup behavior
+public class AssignmentView extends JDialog {
 
-    // --- Controller ---
-    private AssignmentController assignmentController;
-    private Course currentCourse; // Need course to get categories
-    private Assignment currentAssignment; // The assignment being viewed/edited
+    // --- Controllers ---
+    private AssignmentController assignmentController; // For editing actions
+    private TeacherController teacherController; // Needed if CREATING new assignment
+    private Course currentCourse; // Need course to get categories and add new assignments
+    private Assignment currentAssignment; // The assignment being viewed/edited can be null if new
 
     // --- GUI Components ---
     private JTextField nameField;
     private JTextField pointsField;
-    private JTextField dueDateField; // Using JTextField for now
+    private JTextField dueDateField; // Expecting YYYY-MM-DD string maybe
     private JComboBox<GradingCategory> categoryComboBox; // Store actual Category objects
     private JCheckBox isGradedCheckBox;
     private JTextArea descriptionArea;
-    private JButton saveChangesButton;
-    private JButton closeButton;
+    private JButton saveButton; // Renamed
+    private JButton cancelButton; // Renamed
 
-    // Flag to track if data was successfully saved
+    // Flag to track if data was successfully saved for the calling window
     private boolean saved = false;
 
     /**
      * Constructor - sets up the dialog window with fields.
-     * Takes the parent frame, controller, the course (for categories),
-     * and the Assignment object (can be null if creating a new one).
+     * Takes the parent frame, controllers, the course,
+     * and the Assignment object null means creating a new one.
      */
-    public AssignmentView(Frame parent, AssignmentController controller, Course course, Assignment assignment) {
-        super(parent, "Assignment Details", true); // Make it a modal dialog
+    public AssignmentView(Frame parent, AssignmentController assignCtrl, TeacherController teachCtrl, Course course, Assignment assignment) {
+        // Make it a modal dialog blocks parent until closed
+        super(parent, "Assignment Details", true);
 
-        this.assignmentController = controller;
+        this.assignmentController = assignCtrl;
+        this.teacherController = teachCtrl; // Store teacher controller
         this.currentCourse = course;
-        this.currentAssignment = assignment; // Might be null for new assignment
+        this.currentAssignment = assignment; // Might be null
 
         // Basic window setup
-        this.setSize(450, 420); // Adjusted size slightly
-        this.setLocationRelativeTo(parent); // Center relative to parent
-        this.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE); // Dispose only this window
+        this.setSize(450, 420);
+        this.setLocationRelativeTo(parent);
+        this.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE); // Just close this dialog
 
-        // Use GridBagLayout for structured form layout
+        // --- Main Panel using GridBagLayout for form structure ---
         JPanel mainPanel = new JPanel(new GridBagLayout());
         mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // Padding
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(5, 5, 5, 5);
-        gbc.anchor = GridBagConstraints.WEST;
+        gbc.insets = new Insets(5, 5, 5, 5); // Padding between components
+        gbc.anchor = GridBagConstraints.WEST; // Align labels left
 
-        int gridY = 0; // Row counter
+        int gridY = 0; // Keep track of current row
 
-        // Assignment Name
+        // --- Assignment Name ---
         gbc.gridx = 0; gbc.gridy = gridY;
         mainPanel.add(new JLabel("Name:"), gbc);
         gbc.gridx = 1; gbc.gridwidth = 2; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
@@ -70,214 +77,296 @@ public class AssignmentView extends JDialog { // Changed to JDialog for popup be
         mainPanel.add(nameField, gbc);
         gridY++; gbc.gridwidth = 1; gbc.fill = GridBagConstraints.NONE; gbc.weightx = 0; // Reset
 
-        // Points Possible
+        // --- Points Possible ---
         gbc.gridx = 0; gbc.gridy = gridY;
         mainPanel.add(new JLabel("Points Possible:"), gbc);
-        gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.gridx = 1; // Let it resize maybe? No.
         pointsField = new JTextField(5);
         mainPanel.add(pointsField, gbc);
-        gridY++; gbc.fill = GridBagConstraints.NONE;
+        gridY++;
 
-        // Due Date
+        // --- Due Date ---
         gbc.gridx = 0; gbc.gridy = gridY;
         mainPanel.add(new JLabel("Due Date (YYYY-MM-DD):"), gbc);
-        gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.gridx = 1; // Let it resize
+        // Just a text field for now. Should validate format on save.
         dueDateField = new JTextField(10);
         mainPanel.add(dueDateField, gbc);
-        gridY++; gbc.fill = GridBagConstraints.NONE;
+        gridY++;
 
-        // Category
+        // --- Category ---
         gbc.gridx = 0; gbc.gridy = gridY;
         mainPanel.add(new JLabel("Category:"), gbc);
         gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL;
         categoryComboBox = new JComboBox<>(); // Will hold GradingCategory objects
-        populateCategoryComboBox(); // Fill it with course categories
+        populateCategoryComboBox(); // Fill dropdown with categories from the course
         mainPanel.add(categoryComboBox, gbc);
         gridY++; gbc.fill = GridBagConstraints.NONE;
 
-        // Graded Status
+        // --- Graded Status ---
         gbc.gridx = 0; gbc.gridy = gridY;
         mainPanel.add(new JLabel("Graded:"), gbc);
         gbc.gridx = 1;
-        isGradedCheckBox = new JCheckBox();
+        isGradedCheckBox = new JCheckBox(); // Simple check box
         mainPanel.add(isGradedCheckBox, gbc);
         gridY++;
 
-        // Description
-        gbc.gridx = 0; gbc.gridy = gridY; gbc.anchor = GridBagConstraints.NORTHWEST;
+        // --- Description ---
+        gbc.gridx = 0; gbc.gridy = gridY; gbc.anchor = GridBagConstraints.NORTHWEST; // Align label top-left
         mainPanel.add(new JLabel("Description:"), gbc);
+        // Make text area span multiple rows and columns and resize
         gbc.gridx = 1; gbc.gridwidth = 2; gbc.gridheight = 3;
-        gbc.fill = GridBagConstraints.BOTH; gbc.weightx = 1.0; gbc.weighty = 1.0;
+        gbc.fill = GridBagConstraints.BOTH; gbc.weightx = 1.0; gbc.weighty = 1.0; // Let it grow
         descriptionArea = new JTextArea(5, 20);
+        descriptionArea.setLineWrap(true); // Wrap text
+        descriptionArea.setWrapStyleWord(true);
+        // Put text area inside scroll pane in case description is long
         JScrollPane scrollPane = new JScrollPane(descriptionArea);
         mainPanel.add(scrollPane, gbc);
+        // Reset grid settings after multi cell component
         gridY += 3; gbc.gridwidth = 1; gbc.gridheight = 1; gbc.fill = GridBagConstraints.NONE; gbc.weightx = 0; gbc.weighty = 0;
 
-        // Buttons Panel
+        // --- Buttons Panel ---
+        // Use FlowLayout aligned right for buttons at bottom
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        saveChangesButton = new JButton("Save Changes");
-        closeButton = new JButton("Cancel");
-        buttonPanel.add(saveChangesButton);
-        buttonPanel.add(closeButton);
+        saveButton = new JButton("Save"); // Renamed
+        cancelButton = new JButton("Cancel"); // Renamed
+        buttonPanel.add(saveButton);
+        buttonPanel.add(cancelButton);
 
-        // Add panels to frame
+        // --- Add Panels to Dialog Window ---
+        // Use BorderLayout for the dialog itself
         this.setLayout(new BorderLayout());
-        this.add(mainPanel, BorderLayout.CENTER);
-        this.add(buttonPanel, BorderLayout.SOUTH);
+        this.add(mainPanel, BorderLayout.CENTER); // Form in the middle
+        this.add(buttonPanel, BorderLayout.SOUTH); // Buttons at the bottom
 
-        // Load data if editing an existing assignment
+        // If editing existing assignment null check, fill fields with its data
         if (assignment != null) {
             displayAssignmentDetails(assignment);
         } else {
-            // Set title for new assignment
+            // Otherwise set title for creating a new one
              setTitle("Create New Assignment");
         }
 
-        // Add action listeners
+        // Connect buttons to their actions
         addActionListeners();
 
         System.out.println("AssignmentView created with components");
     }
 
     /**
-     * populateCategoryComboBox fills the dropdown with categories from the current course.
-     * It adds the actual GradingCategory objects, but the combo box uses their toString() for display.
+     * populateCategoryComboBox fills the dropdown with GradingCategory objects
+     * from the current course. Uses category name for display.
+     * Adds a "(None)" option represented by null.
      */
     private void populateCategoryComboBox() {
-        categoryComboBox.removeAllItems(); // Clear first
-        // Add a "None" option maybe? Or require selection? For now, just course categories.
-        // categoryComboBox.addItem(null); // Represent "No Category"
+        categoryComboBox.removeAllItems(); // Clear old items
+        // Add null option first to represent no category selected
+        categoryComboBox.addItem(null); // Need custom renderer later maybe
 
-        if (currentCourse != null) {
-            Map<String, GradingCategory> categories = currentCourse.getGradingCategories();
-            if (categories != null) {
-                for (GradingCategory cat : categories.values()) {
-                    categoryComboBox.addItem(cat); // Add the object itself
+        boolean courseExists = (currentCourse != null);
+        if (courseExists) {
+            // Get the categories map from the course
+            Map<String, GradingCategory> categories = currentCourse.getGradingCategories(); // Gets copy
+            boolean categoriesExist = (categories != null);
+            if (categoriesExist) {
+                // Sort categories alphabetically by name for the dropdown maybe?
+                 List<GradingCategory> sortedCategories = new ArrayList<>(categories.values());
+                 sortedCategories.sort(Comparator.comparing(GradingCategory::getName, String.CASE_INSENSITIVE_ORDER));
+                // Add each actual GradingCategory object to the dropdown
+                for (GradingCategory cat : sortedCategories) {
+                    categoryComboBox.addItem(cat); // JComboBox uses toString()
                 }
             }
         }
+        // Set default selection maybe?
+        categoryComboBox.setSelectedIndex(0); // Select the null/"None" option
     }
 
     /**
-     * displayAssignmentDetails fills the GUI fields with data from the passed Assignment object.
-     * Called when the view is opened for editing an existing assignment.
-     * @param assignment The assignment whose details should be shown.
+     * displayAssignmentDetails fills the GUI fields with data from the assignment object.
+     * This gets called when the dialog opens for editing an existing assignment.
+     * @param assignment The assignment object whose details we need to show.
      */
     public void displayAssignmentDetails(Assignment assignment) {
+        // Check assignment exists
         if (assignment == null) return;
-        this.currentAssignment = assignment; // Store for saving later
-        setTitle("Edit Assignment: " + assignment.getName()); // Update title
+        this.currentAssignment = assignment; // Store for save logic
+        setTitle("Edit Assignment: " + assignment.getName()); // Update window title
 
+        // Set text/values in the fields based on assignment's getter methods
         nameField.setText(assignment.getName());
         pointsField.setText(String.valueOf(assignment.getPointsWorth()));
-
-        // Handle date - convert LocalDate to String for text field
-        String dueDateText = "";
-        // TODO: Need Assignment.getDueDate() method returning LocalDate
-        // if (assignment.getDueDate() != null) {
-        //     dueDateText = assignment.getDueDate().toString(); // Format YYYY-MM-DD
-        // }
-        dueDateField.setText(dueDateText); // Use placeholder for now
+        dueDateField.setText(assignment.getDueDate() != null ? assignment.getDueDate() : ""); // Use string date
+        descriptionArea.setText(assignment.getDescription() != null ? assignment.getDescription() : ""); // Use getter
 
         // Select the correct category in the combo box
-        // TODO: Need Assignment.getCategory() method returning GradingCategory
-        // GradingCategory currentCat = assignment.getCategory();
-        // categoryComboBox.setSelectedItem(currentCat); // Selects based on object equality or toString() match
+        // Loop through items find the GradingCategory object matching assignment's categoryName string.
+        categoryComboBox.setSelectedItem(null); // Default to none
+        String assignmentCategoryName = assignment.getCategoryName();
+        boolean categoryNameExists = (assignmentCategoryName != null);
+        if (categoryNameExists && !assignmentCategoryName.equalsIgnoreCase("None") && !assignmentCategoryName.equalsIgnoreCase("Uncategorized")) {
+             for (int i = 0; i < categoryComboBox.getItemCount(); i++) {
+                 GradingCategory catInBox = categoryComboBox.getItemAt(i);
+                 // Check object not null and names match
+                 if (catInBox != null && catInBox.getName().equals(assignmentCategoryName)) {
+                      categoryComboBox.setSelectedIndex(i); // Select the matching object
+                      break; // Stop looking
+                 }
+             }
+        } else {
+             categoryComboBox.setSelectedIndex(0); // Select the null/"None" item if no match
+        }
 
+        // Set the checkbox based on assignment's graded status
         isGradedCheckBox.setSelected(assignment.isGraded());
-
-        // TODO: Need Assignment.getDescription() method
-        // descriptionArea.setText(assignment.getDescription() != null ? assignment.getDescription() : "");
-        descriptionArea.setText(""); // Placeholder
     }
 
     /**
-     * addActionListeners connects the Save and Cancel buttons.
+     * addActionListeners connects the Save and Cancel buttons to code.
+     * Cancel just closes the window. Save calls the saveAssignment helper method.
      */
     private void addActionListeners() {
-        // Cancel button just closes this dialog window
-        closeButton.addActionListener(e -> this.dispose());
+        // Cancel button action: just close this dialog using dispose()
+        cancelButton.addActionListener(e -> this.dispose());
 
-        // Save button tries to update or create the assignment
-        saveChangesButton.addActionListener(e -> saveAssignment());
+        // Save button action: call the saveAssignment method
+        saveButton.addActionListener(e -> saveAssignment());
     }
 
     /**
      * saveAssignment is called when the Save button is clicked.
-     * It gets the data from the GUI fields, validates it,
-     * calls the controller to save the changes (either update existing or create new),
-     * and closes the dialog if successful.
+     * It reads the values from all the GUI fields name, points, date, category etc.
+     * It validates the input like making sure points is a number.
+     * If creating a new assignment currentAssignment is null, it makes a new Assignment object
+     * and uses TeacherController to add it to the course.
+     * If editing existing currentAssignment isn't null, it uses AssignmentController
+     * to update the existing assignment's details.
+     * Closes the dialog window only if the save operation seems successful.
      */
     private void saveAssignment() {
-        System.out.println("Save Changes button clicked");
+        System.out.println("AssignmentView save button trying to save...");
 
-        // 1. Get data from fields
+        // --- 1. Get data from all the GUI input fields ---
         String name = nameField.getText().trim();
         String pointsStr = pointsField.getText().trim();
-        String dueDateStr = dueDateField.getText().trim();
+        String dueDateStr = dueDateField.getText().trim(); // Assume format YYYY-MM-DD maybe?
         Object selectedCategoryObj = categoryComboBox.getSelectedItem(); // This is GradingCategory or null
         boolean isGraded = isGradedCheckBox.isSelected();
-        String description = descriptionArea.getText(); // trim() maybe later?
+        String description = descriptionArea.getText();
 
-        // 2. Validate data
+        // --- 2. Validate the input data ---
         if (name.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Assignment name cannot be empty.", "Input Error", JOptionPane.ERROR_MESSAGE);
-            return;
+            showError("Assignment name cannot be empty.");
+            return; // Stop saving
         }
-        double points = -1; // Use invalid value to check if parsing works
+        double points = -1.0; // Default to invalid
         try {
             points = Double.parseDouble(pointsStr);
-            if (points < 0) throw new NumberFormatException(); // Ensure non-negative
+            if (points < 0) throw new NumberFormatException("Points cannot be negative");
         } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Points Possible must be a non-negative number.", "Input Error", JOptionPane.ERROR_MESSAGE);
-            return;
+            showError("Points Possible must be a valid non negative number.");
+            return; // Stop saving
         }
-        // TODO: Validate Date format YYYY-MM-DD and parse to LocalDate
-        LocalDate dueDate = null; // Placeholder
-        // try { if (!dueDateStr.isEmpty()) dueDate = LocalDate.parse(dueDateStr); } catch ...
+        // TODO Add date string validation if needed
 
-        // Get the actual GradingCategory object (can be null if none selected/available)
-        GradingCategory category = null;
+        // Get the category name string to store in Assignment
+        // Assignment model currently expects a String for category name
+        GradingCategory categoryObject = null;
         if (selectedCategoryObj instanceof GradingCategory) {
-            category = (GradingCategory) selectedCategoryObj;
+            categoryObject = (GradingCategory) selectedCategoryObj;
         }
-        String categoryName = (category != null) ? category.getName() : "None"; // Use name for Assignment constructor maybe? Check Assignment constructor/setters
+        String categoryName = (categoryObject != null) ? categoryObject.getName() : null; // Use null if no category selected
 
-        // 3. Call Controller (or update model directly if simple?)
-        // This logic depends on whether we are creating NEW or editing EXISTING
+        // --- 3. Call Controller to save ---
         boolean success = false;
-        if (currentAssignment == null) { // Creating NEW
-             System.out.println("TODO: Need logic to CREATE new Assignment object and add it via Controller");
-             // Example:
-             // Assignment newAssignment = new Assignment(generateId(), name, points, dueDateStr, categoryName, null); // Need ID generation, groupName?
-             // success = teacherController.addAssignmentToCourse(newAssignment, currentCourse); // Need TeacherController ref?
-        } else { // Editing EXISTING
-             System.out.println("TODO: Need logic to UPDATE existing Assignment object via Controller");
-             // Example using AssignmentController:
-             // success = assignmentController.editAssignmentDetails(currentAssignment, name, points /*, dueDate, description */);
-             // Need to also handle category change and graded status change maybe?
-             // assignmentController.setAssignmentCategory(currentAssignment, category); // If category changed
-             // assignmentController.markAssignmentGraded(currentAssignment, isGraded); // Update graded status
+        boolean isEditing = (this.currentAssignment != null);
+
+        if (isEditing) {
+            // Editing existing assignment
+            System.out.println("AssignmentView saving changes to: " + currentAssignment.getName());
+            // Need AssignmentController for edits
+            boolean haveAssignCtrl = (assignmentController != null);
+            if (haveAssignCtrl) {
+                 // Call controller to update basic fields name, points
+                 success = assignmentController.editAssignmentDetails(currentAssignment, name, points /*, pass other fields like date */);
+                 // Also update category name and description using assumed setters in Assignment model
+                 // TODO Assignment model needs setCategoryName(String) and setDescription(String)
+                 // For now, assume they exist and call them directly or via controller later
+                 try {
+                     currentAssignment.setCategoryName(categoryName); // Needs setter
+                     currentAssignment.setDescription(description); // Needs setter
+                     // Update graded status using controller
+                     boolean gradedSuccess = assignmentController.markAssignmentGraded(currentAssignment, isGraded);
+                     success = success && gradedSuccess; // Combine results
+                 } catch (Exception e) {
+                      System.out.println("AssignmentView problem: Error setting category/desc/graded status - check Assignment setters");
+                      success = false;
+                 }
+            } else {
+                 System.out.println("AssignmentView error: AssignmentController is missing, cannot save edits.");
+                 success = false;
+            }
+
+        } else { // Creating a new assignment
+            System.out.println("AssignmentView creating new assignment: " + name);
+            // Need TeacherController and Course to add new assignment
+            boolean canCreate = (teacherController != null && currentCourse != null);
+            if (canCreate) {
+                // Make a new Assignment object
+                // ID? Use placeholder for now. Group name? Use null for now.
+                String newId = "Assign_" + System.currentTimeMillis(); // Simple temporary ID
+                String groupName = null; // No group field in UI currently
+                try {
+                    // Use the Assignment constructor needs categoryName String
+                    Assignment newAssignment = new Assignment(newId, name, points, dueDateStr, categoryName, groupName);
+                    // Set description assume setter exists
+                    newAssignment.setDescription(description); // TODO Verify Assignment.setDescription
+                    // Set graded status assume setter exists
+                    newAssignment.setGraded(isGraded); // TODO Verify Assignment.setGraded
+
+                    // Use TeacherController to add this new assignment to the course
+                    success = teacherController.addAssignmentToCourse(newAssignment, currentCourse);
+
+                } catch (IllegalArgumentException ex) {
+                     showError("Error creating assignment: " + ex.getMessage());
+                     success = false;
+                } catch (Exception ex) {
+                     showError("Unexpected error creating assignment: " + ex.getMessage());
+                     success = false;
+                }
+            } else {
+                 System.out.println("AssignmentView error: Missing TeacherController or Course reference, cannot create.");
+                 success = false;
+            }
         }
 
 
-        // 4. Close dialog ONLY if save was successful
+        // --- 4. Close dialog ONLY if save was successful ---
         if (success) {
-            this.saved = true; // Set flag maybe?
-            this.dispose(); // Close the dialog window
+            this.saved = true; // Set flag so TeacherView knows it worked
+            System.out.println("Assignment save successful, closing dialog.");
+            this.dispose(); // Close this dialog window
         } else {
-            // Show error message if controller method returned false
-            JOptionPane.showMessageDialog(this, "Failed to save assignment changes.", "Save Error", JOptionPane.ERROR_MESSAGE);
+            // Show generic error if controller method returned false or other issue
+            showError("Failed to save assignment changes. Check inputs or console.");
         }
     }
 
-    // --- Getters for UI values ---
-    // Could be used by controller if needed, or validation
-    public String getNameFieldValue() { return nameField.getText(); }
-    public String getPointsFieldValue() { return pointsField.getText(); }
-    // Add more getters if needed
+    // --- Helper to show simple error popup ---
+    private void showError(String message) {
+         JOptionPane.showMessageDialog(this, message, "Input Error", JOptionPane.ERROR_MESSAGE);
+    }
+    // --- Helper to show simple info popup ---
+    private void showInfo(String message) {
+         JOptionPane.showMessageDialog(this, message, "Information", JOptionPane.INFORMATION_MESSAGE);
+    }
 
-    // Method to check if save was successful before closing
+    /**
+     * wasSaveSuccessful is called by the window that opened this dialog
+     * after it closes to check if the user actually saved changes or just cancelled.
+     * @return true if save button was clicked and controller reported success.
+     */
     public boolean wasSaveSuccessful() {
         return saved;
     }

@@ -6,6 +6,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects; // Needed for Objects.equals
 
 import model.grading.GradeCalculator;
 import java.beans.PropertyChangeListener;
@@ -20,25 +21,33 @@ public class Course {
     private final String name;
     private final String courseId;
     private final String semester;
-    private final Map<String, Student> enrolledStudents; // key: username
+    // map holds students enrolled, key is username string, value is Student object.
+    private final Map<String, Student> enrolledStudents;
+    // list holds all assignments defined for this course.
     private final List<Assignment> assignments;
-    private final Map<String, GradingCategory> categories; // key: category name
-    private boolean useCategories; // true = weighted mode, false = points mode
-    private GradeCalculator gradeCalculator; // The strategy object
-    private final PropertyChangeSupport pcs = new PropertyChangeSupport(this);
+    // map holds grading categories if used, key is category name string, value is GradingCategory object.
+    private final Map<String, GradingCategory> categories;
+    // flag true means use weighted category mode, false means use simple points mode.
+    private boolean useCategories;
+    // holds the specific GradeCalculator strategy object PointsBased or CategoryBased
+    private GradeCalculator gradeCalculator;
+    // This helper object is for the Observer pattern PropertyChangeSupport
+    // It manages listeners and firing events when data changes. Marked transient for JSON.
+    private final transient PropertyChangeSupport pcs = new PropertyChangeSupport(this);
 
 
     //Constructor
     // Makes a new Course object. Needs name, id, semester, and grading mode boolean.
     // Initializes lists/maps empty. Throws error if required info null.
     public Course(String name, String courseId, String semester, boolean useCategories) {
-        if (name == null || courseId == null || semester == null) {
-            throw new IllegalArgumentException("Course info must not be null.");
+        if (name == null || name.trim().isEmpty() || courseId == null || courseId.trim().isEmpty() || semester == null || semester.trim().isEmpty()) {
+            throw new IllegalArgumentException("Course name, ID, and semester must not be null or empty.");
         }
-        this.name = name;
-        this.courseId = courseId;
-        this.semester = semester;
-        this.useCategories = useCategories;
+        this.name = name.trim();
+        this.courseId = courseId.trim();
+        this.semester = semester.trim();
+        this.useCategories = useCategories; // Store if using categories or points
+        // Create the empty collections.
         this.enrolledStudents = new HashMap<>();
         this.assignments = new ArrayList<>();
         this.categories = new HashMap<>();
@@ -67,11 +76,16 @@ public class Course {
     /**
      * setGradeCalculator stores which calculation strategy this course uses.
      * gets called by the controller when teacher chooses Points or Category mode.
+     * Fires observer event if calculator changes.
      * @param gc The GradeCalculator object like PointsBased or CategoryBased
      */
     public void setGradeCalculator(GradeCalculator gc) {
-        // Just stores the calculator object passed in.
+        // Store old value for observer event
+        GradeCalculator oldCalculator = this.gradeCalculator;
+        // Just assign the calculator strategy object passed in.
         this.gradeCalculator = gc;
+        // Notify listeners that the calculator strategy changed.
+        pcs.firePropertyChange("gradeCalculator", oldCalculator, gc);
     }
 
     /**
@@ -100,33 +114,34 @@ public class Course {
         // check that the student object is valid and not already enrolled
         if (s != null && !enrolledStudents.containsKey(s.getUsername())) {
             // add the student to the internal map using their username as the key
-            enrolledStudents.put(s.getUsername(), s);
+            Student previouslyAdded = enrolledStudents.put(s.getUsername(), s);
+            // Check if put returned null which means student was not already there
+            if (previouslyAdded == null) {
+                 // Also inform the student that they are now part of this course
+                 // Assumes Student class has this method.
+                 s.enrollInCourse(this);
 
-            // Also inform the student that they are now part of this course
-            // Assumes Student class has this method.
-            s.enrollInCourse(this);
-
-            // Notify any observers e.g., views that a new student has been enrolled
-            // this is done using Java’s PropertyChangeSupport system
-            // The event name is "studentEnrolled".
-            pcs.firePropertyChange("studentEnrolled", null, s);
+                 // Notify any observers like views that a new student has been enrolled
+                 // The event name is "studentEnrolled". Old value null, new value is the student.
+                 pcs.firePropertyChange("studentEnrolled", null, s);
+            }
         }
     }
 
     /**
-     * removeStudent removes a student from the course map.
-     * It checks if the student exists first.
+     * removeStudent removes a student from the course map using their username.
+     * Checks if the student exists first.
      * fires observer event if student was actually removed.
      * @param s The Student object to remove.
      */
     public void removeStudent(Student s) {
         //check input and if student actually enrolled using username key.
         if (s != null && enrolledStudents.containsKey(s.getUsername())) {
-            //remove student from the map using username key.
-            Student removed = enrolledStudents.remove(s.getUsername());
+            //remove student from the map using username key. Returns removed student or null.
+            Student removedStudent = enrolledStudents.remove(s.getUsername());
             // Check if remove actually returned the student object meaning it was there.
-            if (removed != null) {
-                 //notify listeners. Event name "studentRemoved".
+            if (removedStudent != null) {
+                 //notify listeners. Event name "studentRemoved". Old value is student, new is null.
                  pcs.firePropertyChange("studentRemoved", s, null);
             }
         }
@@ -140,7 +155,7 @@ public class Course {
      * @return A new List<Student> containing enrolled students.
      */
     public List<Student> getEnrolledStudents() {
-        //get the values Student objects from the map and put them in a new ArrayList.
+        //get the values Student objects from the map and put them in a new ArrayList copy.
         return new ArrayList<Student>(enrolledStudents.values());
     }
 
@@ -149,20 +164,20 @@ public class Course {
 
     /**
      * addAssignment adds an assignment definition to the course's list.
-     * It checks if the assignment is valid and not already added.
+     * Checks if the assignment is valid and not already added based on equals method.
      * If the course uses categories, it also adds the assignment to the correct category object map.
-     * Fires observer event if assignment added.
+     * Fires observer event if assignment was actually added.
      * @param a The Assignment object to add.
      */
     public void addAssignment(Assignment a) {
-        // check input is not null and assignment isn't already in the list.
+        // check input is not null and assignment isn't already in the list using equals.
         if (a != null && !assignments.contains(a)) {
             // Add to the main assignment list for the course.
             assignments.add(a);
 
             //if this course is using category weights...
             if (useCategories) {
-                // ...then find the category object matching the assignment's category name string.
+                // ...then find the category object using the assignment's category name string.
                 GradingCategory category = categories.get(a.getCategoryName());
 
                 //if the category object exists...
@@ -184,9 +199,9 @@ public class Course {
      * removeAssignment removes an assignment definition from the course.
      * It removes it from the main course assignment list.
      * If using categories, it removes it from the category's list too.
-     * IMPORTANTLY it loops through all enrolled students and tells each student object
+     * It loops through all enrolled students and tells each student object
      * to remove any grade they had stored for this specific assignment using student.removeGradeForAssignment.
-     * It also tells the Assignment object itself to clear its internal map of grades, just in case using a.clearAllGrades().
+     * It also tells the Assignment object itself to clear its internal map of grades using a.clearAllGrades().
      * Fires observer event if assignment was removed.
      * @param a The Assignment object to remove.
      */
@@ -208,14 +223,14 @@ public class Course {
                 }
 
                 // Clear grades stored inside the Assignment object itself.
-                // Assumes Assignment has this method maybe from teammates.
+                // Assumes Assignment has this method.
                 a.clearAllGrades(); // TODO Verify Assignment.clearAllGrades exists
 
                 // Also remove grades stored inside each Student object for this assignment.
                 // loop through all student objects currently enrolled.
                 for (Student student : enrolledStudents.values()) {
                     //tell the student object to remove any grade associated with this assignment object.
-                    // Assumes Student has this method from Person B.
+                    // Assumes Student has this method.
                     student.removeGradeForAssignment(a);
                 }
 
@@ -230,6 +245,7 @@ public class Course {
     /**
      * addGradingCategory adds a category definition like homework or exams to the course.
      * only adds if a category with the same name isn't already there.
+     * Fires event if category added.
      * @param category The GradingCategory object to add.
      */
     public void addGradingCategory(GradingCategory category) {
@@ -237,18 +253,24 @@ public class Course {
         if (category != null && !categories.containsKey(category.getName())) {
             //add to the map using category name as key, category object as value.
             categories.put(category.getName(), category);
-            // TODO maybe fire observer event here?
+            // Notify listeners category list changed
+             pcs.firePropertyChange("categoryAdded", null, category);
         }
     }
 
     /**
      * clearGradingCategories removes all defined categories from the course.
      * useful if teacher wants to reset or change grading scheme.
+     * Fires event after clearing.
      */
     public void clearGradingCategories() {
-        //clear the map that holds the category objects.
-        categories.clear();
-        // TODO maybe fire observer event here?
+        // Check if there's anything to clear first
+        if (!categories.isEmpty()) {
+            //clear the map holding the category objects.
+            categories.clear();
+            // Notify listeners that categories were cleared
+            pcs.firePropertyChange("categoriesCleared", null, null); // Send null for old/new maybe
+        }
     }
 
 
@@ -448,7 +470,7 @@ public class Course {
      * based on their score on one specific assignment.
      * It gets the current student list copy, then makes a Comparator that knows
      * how to compare two students by looking up their grade for the specific assignment.
-     * Handles students who don't have a grade yet by sorting them lowest or highest.
+     * Handles students who don't have a grade yet by sorting them lowest highest.
      * @param assignment The Assignment whose grades to use for sorting. Check if null.
      * @param ascending true puts lowest score first, false puts highest score first.
      * @return New sorted List<Student>. Empty list if assignment null.
@@ -503,11 +525,13 @@ public class Course {
      * lets outside things like views listen for changes in this course.
      * uses the built in PropertyChangeSupport helper object from Java beans package.
      * The view calls this to register itself.
-     * @param listener The object usually a View that implements PropertyChangeListener wants to be notified.
+     * @param listener whatever wants to be notified when something changes maybe a View.
      */
     public void addPropertyChangeListener(PropertyChangeListener listener) {
-        // Just pass the listener to the helper object pcs.
-        pcs.addPropertyChangeListener(listener);
+        // Check listener isn't null before adding.
+        if (listener != null) {
+             pcs.addPropertyChangeListener(listener);
+        }
     }
 
     /**
@@ -517,7 +541,9 @@ public class Course {
      */
     public void removePropertyChangeListener(PropertyChangeListener listener) {
         // Tell the helper object pcs to remove the listener.
-        pcs.removePropertyChangeListener(listener);
+        if (listener != null) {
+            pcs.removePropertyChangeListener(listener);
+        }
     }
 
     //overrides
@@ -531,5 +557,30 @@ public class Course {
         // Return the name field directly.
         return name;
     }
+
+    /**
+     * equals method checks if two Course objects are the same.
+     * Based ONLY on the courseId for now, assumes course IDs are unique system wide.
+     */
+     @Override
+     public boolean equals(Object o) {
+         // Standard checks: same object, null, different class.
+         if (this == o) return true;
+         if (o == null || getClass() != o.getClass()) return false;
+         // Cast to Course.
+         Course course = (Course) o;
+         // Compare using the courseId field. Use Objects.equals for null safety just in case.
+         return Objects.equals(courseId, course.courseId);
+     }
+
+     /**
+      * hashCode method goes with equals. Based on same field courseId.
+      */
+      @Override
+      public int hashCode() {
+          // Use Objects.hash helper to generate hash code from courseId.
+          return Objects.hash(courseId);
+      }
+
 
 }

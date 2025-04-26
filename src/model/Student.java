@@ -4,10 +4,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Iterator;
+import java.util.Objects; // Needed for equals/hashCode maybe
+//import java.util.Iterator; // Not needed currently
 
 import model.grading.GradeCalculator;
-import model.grading.PointsBasedCalculator; // Might need default
+// import model.grading.PointsBasedCalculator; // Don't need default here
 
 import java.beans.PropertyChangeSupport;
 import java.beans.PropertyChangeListener;
@@ -22,48 +23,59 @@ import java.beans.PropertyChangeListener;
  */
 public class Student extends User {
     private final String studentId;
-    // This list holds the Course objects the student is currently taking this semester.
-    // Final just means the list object itself cant be replaced, we can still add/remove courses.
+    // This list holds the Course objects the student is currently taking.
     private final List<Course> currentCourses;
 
-    // This list holds Course objects the student has finished in the past.
+    // This list holds Course objects the student has finished.
     private final List<Course> completedCourses;
 
     // This map stores the actual grades the student got on assignments.
-    // The key is the Assignment object itself, and the value is the Grade object points and feedback.
-    // This lets us quickly find the grade for any specific assignment.
+    // Key is Assignment object, Value is Grade object.
     private final Map<Assignment, Grade> grades;
 
-    // This map stores the final letter grade A, B, C etc the student received for courses they completed.
-    // The key is the Course object, the value is the letter grade String.
+    // This map stores the final letter grade A, B, C etc for completed courses.
+    // Key is Course object, Value is letter grade String.
     private final Map<Course, String> finalGrades;
 
-    // This is for the Observer pattern using standard Java stuff.
-    // Lets the Student object notify Views when something changes like a grade added.
+    // This is for the Observer pattern using standard Java stuff PropertyChangeSupport.
     // transient means gson wont try to save this special object to the JSON file.
-    private transient PropertyChangeSupport pcs = new PropertyChangeSupport(this);
+    private transient PropertyChangeSupport pcs; // Initialize in init method
 
     //Constructor
     /**
      * Constructor makes a new Student object.
-     * First it calls the User constructor using super to set up the
-     * name, username, email, hashed password, and sets the role to STUDENT.
-     * Then it sets the student's ID and makes empty lists and maps
-     * to hold their courses and grades later.
+     * Calls User constructor with Role.STUDENT.
+     * Sets student ID, makes empty lists and maps for courses/grades.
+     * Needs initTransientFields called after loading from JSON.
      */
     public Student(String firstName, String lastName, String email, String password, String username, String studentId) {
         // Call User constructor, pass Role.STUDENT this time.
         super(firstName, lastName, email, password, username, Role.STUDENT);
-
         // Store the student specific ID.
         this.studentId = studentId;
-
         //make the empty lists and maps ready to use.
         this.currentCourses = new ArrayList<>();
         this.completedCourses = new ArrayList<>();
         this.grades = new HashMap<>();
         this.finalGrades = new HashMap<>();
+        // Initialize observer helper here too maybe? No, do it in init method.
+        // this.pcs = new PropertyChangeSupport(this);
     }
+
+    /**
+     * initTransientFields needs to be called after a Student object is loaded from JSON.
+     * Because the PropertyChangeSupport helper 'pcs' is marked transient,
+     * it doesn't get saved/loaded by Gson. So we need to create it manually after loading.
+     */
+     public void initTransientFields() {
+         // Check if pcs is null meaning it wasn't created or loaded
+         if (this.pcs == null) {
+             // Create a new helper object linked to this Student instance.
+             this.pcs = new PropertyChangeSupport(this);
+             System.out.println("Initialized transient PropertyChangeSupport for student: " + getUsername());
+         }
+     }
+
 
     //getters
     /** Gets the student's ID string. */
@@ -72,11 +84,10 @@ public class Student extends User {
     }
 
     /** Gets a copy of the list of courses the student is currently taking.
-     *  EXAMPLE OF ENCAPSULATION Returning a copy is important so outside code cant
-     *  mess up the student's actual internal list. Avoids escaping references.
+     *  ENCAPSULATION Returning a copy prevents messing up internal list.
      */
     public List<Course> getCurrentCourses() {
-        //make a new ArrayList and give it all the courses from the internal list.
+        //make a new ArrayList copy.
         return new ArrayList<Course>(currentCourses);
     }
 
@@ -101,32 +112,30 @@ public class Student extends User {
     //Course management
     /**
      * enrollInCourse adds a course to this student's list of current courses.
-     * Checks first if the course is valid and if the student isn't already
-     * enrolled in it to avoid duplicates in the list.
-     * Important part is it fires a property change event using pcs
-     * to tell any listeners like the UI that the student's course list changed.
+     * Checks first if the course is valid and if student isn't already enrolled.
+     * Fires property change event "courseEnrolled" using pcs if successful.
      * @param course The Course object to add.
      */
     public void enrollInCourse(Course course) {
-        //check if course is not null and if its not already in the current list.
+        //check if course not null and not already in the current list.
         if (course != null && !currentCourses.contains(course)) {
-
         	//add it to the student's list of current courses.
             currentCourses.add(course);
-
-            //send out a notification signal "courseEnrolled" using the pcs helper.
-            // Views listening for this property name can then update themselves.
-            pcs.firePropertyChange("courseEnrolled", null, course);
+            //send out notification signal "courseEnrolled".
+            // Make sure pcs is initialized first! Call initTransientFields after loading.
+            if (pcs != null) {
+                 pcs.firePropertyChange("courseEnrolled", null, course);
+            } else {
+                 System.out.println("Student problem: enrollInCourse - pcs is null for " + getUsername());
+            }
         }
     }
 
     /**
-     * completeCourse moves a course from the student's current list to their completed list.
-     * This happens when the semester ends or teacher finalizes grades.
-     * It calculates the student's average in the course using calculateClassAverage,
-     * converts that percentage to a letter grade using getLetterGrade,
-     * and stores that final letter grade in the finalGrades map for GPA calculation later.
-     * Fires an event to notify listeners.
+     * completeCourse moves a course from current list to completed list.
+     * Calculates the final percentage average for the course using its calculator.
+     * Converts percentage to letter grade using GradeScale. Stores letter grade.
+     * Fires "courseCompleted" event.
      * @param course The Course object to mark as completed.
      */
     public void completeCourse(Course course) {
@@ -134,29 +143,24 @@ public class Student extends User {
         if (course != null && currentCourses.contains(course)) {
             //remove it from the current list.
             currentCourses.remove(course);
-
             //add it to the completed list.
             completedCourses.add(course);
 
-            // now figure out the final grade for this course.
-            // First calculate the percentage average the student had in this course.
-            double averagePercentage = calculateClassAverage(course); // Uses the course's calculator
+            // calculate final grade average percentage for this course.
+            double averagePercentage = calculateClassAverage(course);
 
-            // Check if the average is a valid number could be -1 or NaN depending on calculator maybe? >=0 is safe check.
-            if (averagePercentage >= 0) {
-                // Convert the percentage like 85.0 to a letter grade like B.
-                String letterGrade = getLetterGrade(averagePercentage); //uses GradeScale enum
+            // Convert percentage to letter grade. Use GradeScale. Handles negative average by returning E maybe.
+            String letterGrade = getLetterGrade(averagePercentage);
 
-                // Store this letter grade in the map, associated with this course.
-                finalGrades.put(course, letterGrade);
-            } else {
-                //if the average couldn't be calculated maybe no grades yet,
-                // store an empty string or maybe "N/A"? Empty for now.
-                finalGrades.put(course, "");
-            }
+            // Store this letter grade in the finalGrades map.
+            finalGrades.put(course, letterGrade);
 
             //send notification that a course was completed. Event name "courseCompleted".
-            pcs.firePropertyChange("courseCompleted", null, course);
+            if (pcs != null) {
+                pcs.firePropertyChange("courseCompleted", null, course);
+            } else {
+                 System.out.println("Student problem: completeCourse - pcs is null for " + getUsername());
+            }
         }
     }
     /////////
@@ -166,45 +170,50 @@ public class Student extends User {
      * addGrade stores a grade the student got for an assignment.
      * Puts the Grade object into the student's internal grades map,
      * using the Assignment object as the key. Overwrites old grade if present.
-     * Fires event to notify view grade was added/updated.
+     * Fires event "gradeAdded" to notify view grade was added/updated.
      * @param assignment The Assignment object the grade is for key.
      * @param grade The Grade object score/feedback value.
      */
     public void addGrade(Assignment assignment, Grade grade) {
         // Check inputs arent null.
         if (assignment != null && grade != null) {
-
         	//put the assignment grade pair into the map. Overwrites if key already exists.
-            grades.put(assignment, grade);
-            assignment.addGrade(this.getUsername(), grade);
-
+            Grade oldGrade = grades.put(assignment, grade); // put returns previous value or null
 
             //send notification that grades changed. Event name "gradeAdded".
-            // Send the assignment as context maybe?
-            pcs.firePropertyChange("gradeAdded", null, assignment);
+            // Send assignment as context maybe? Old grade could be useful too.
+            if (pcs != null) {
+                pcs.firePropertyChange("gradeAdded", oldGrade, grade); // Send old/new grade maybe? Or just assignment context? Send assignment for now.
+                // pcs.firePropertyChange("gradeAdded", null, assignment); // Alternative
+            } else {
+                 System.out.println("Student problem: addGrade - pcs is null for " + getUsername());
+            }
+        } else {
+            System.out.println("Student problem: addGrade got null assignment or grade");
         }
     }
 
     /**
      * removeGradeForAssignment removes the grade entry for a specific assignment
      * from the student's internal grades map.
-     * This is needed when an assignment gets deleted from the course entirely.
+     * Needed when an assignment gets deleted from the course entirely by the Course.removeAssignment method.
+     * Fires event "gradeRemoved".
      * @param assignment The Assignment object whose grade should be removed key.
      */
     public void removeGradeForAssignment(Assignment assignment) {
         // Check input is not null.
         if (assignment != null) {
-
-        	// Use the map's remove method. It returns the Grade object that was removed,
-            // or null if the assignment wasn't found as a key.
+        	// Use the map's remove method. Returns removed Grade object or null.
             Grade removedGrade = grades.remove(assignment);
-
             //check if something was actually removed.
             if (removedGrade != null) {
-
             	//if yes, notify listeners that a grade was removed. Event name "gradeRemoved".
                 // Send assignment as context.
-                 pcs.firePropertyChange("gradeRemoved", assignment, null);
+                if (pcs != null) {
+                    pcs.firePropertyChange("gradeRemoved", assignment, null); // Send assignment that was removed
+                } else {
+                    System.out.println("Student problem: removeGradeForAssignment - pcs is null for " + getUsername());
+                }
             }
         }
     }
@@ -217,6 +226,10 @@ public class Student extends User {
      * @return The Grade object score/feedback, or null if no grade found for that assignment.
      */
     public Grade getGradeForAssignment(Assignment assignment) {
+        // Check input key
+        if (assignment == null) {
+            return null;
+        }
         //get from the map using the Assignment object itself as the key.
         // Returns null if key not found.
         return grades.get(assignment);
@@ -226,16 +239,15 @@ public class Student extends User {
     /**
      * calculateGPA calculates the student's overall Grade Point Average.
      * It only looks at courses in the completedCourses list.
-     * For each completed course, it gets the final letter grade stored in the finalGrades map.
-     * It converts that letter grade A, B etc into a GPA point value 4.0, 3.0 etc using GradeScale.
-     * It sums up these GPA points and divides by the number of completed courses that had a grade.
+     * For each completed course, gets final letter grade from the finalGrades map.
+     * Converts letter grade like "B" into GPA value like 3.0 using GradeScale.
+     * Sums GPA points and divides by number of completed courses that had a grade.
      * @return The calculated GPA as a double like 3.5, or 0.0 if no completed courses have grades.
      */
     public double calculateGPA() {
-        //check if the list of completed courses is empty.
+        //check if the list of completed courses is empty or null.
         if (completedCourses == null || completedCourses.isEmpty()) {
-            //no completed courses means GPA is 0.
-            return 0.0;
+            return 0.0; //no completed courses means GPA is 0.
         }
 
         double totalGpaPoints = 0.0;
@@ -243,27 +255,22 @@ public class Student extends User {
 
         //loop through each course in the completed courses list.
         for (Course course : completedCourses) {
-
         	//get the final letter grade stored for this course from the map.
             String letterGrade = finalGrades.get(course);
-
-            //check that a grade was actually stored and isn't empty.
+            //check that a grade was actually stored and isn't empty/null.
             if (letterGrade != null && !letterGrade.isEmpty()) {
-
-            	//if yes, use the GradeScale enum to convert letter for example "B" to GPA value 3.0.
+            	//if yes, use the GradeScale enum to convert letter to GPA value.
                 double gpaValue = GradeScale.fromLetter(letterGrade).getGpaValue();
-
                 //add this value to the total sum of GPA points.
                 totalGpaPoints = totalGpaPoints + gpaValue;
-
                 //increment the counter for courses included in the GPA.
                 numberOfCoursesCounted++;
             }
+            // If no final letter grade stored, skip this course for GPA calc.
         }
 
-        //calculate the final GPA average. avoid division by zero.
+        //calculate the final GPA average. check numberOfCoursesCounted > 0.
         boolean canCalculate = (numberOfCoursesCounted > 0);
-
         if (canCalculate) {
             // Divide total points by number of courses counted.
             return totalGpaPoints / numberOfCoursesCounted;
@@ -275,22 +282,21 @@ public class Student extends User {
 
     /**
      * calculateClassAverage calculates the student's current average in a specific course.
-     * IMPORTANT This method doesn't do the calculation itself.
-     * It asks the Course object for its currently set GradeCalculator strategy points or category.
+     * IMPORTANT This method doesn't do the calculation itself. It delegates.
+     * It asks the Course object for its currently set GradeCalculator strategy.
      * Then it tells that calculator object to calculate the average for this student in that course.
      * This follows the Strategy pattern.
      * @param theCourse The Course object to calculate average for.
-     * @return The average percentage double, or 0.0 if course null, not enrolled, or no calculator set.
+     * @return The average percentage double, or 0.0 if course null, student not current, or no calculator set.
      */
     public double calculateClassAverage(Course theCourse) {
-        // Check course is valid and student is currently enrolled.
+        // Check course is valid and student is currently enrolled in it.
         boolean courseExists = (theCourse != null);
-        // Check BOTH current and completed maybe? No, requirement says current average. Just check current.
-        boolean isCurrent = currentCourses.contains(theCourse);
+        boolean isCurrent = (courseExists && currentCourses.contains(theCourse)); // Check contains *after* null check
 
         if (!courseExists || !isCurrent) {
-             System.out.println("Student problem: calculateClassAverage got null or not current course");
-            return 0.0;
+             System.out.println("Student problem: calculateClassAverage got null or student not current in course " + (theCourse != null ? theCourse.getName(): "null"));
+            return 0.0; // Return 0 if invalid input or not enrolled
         }
 
         //ask the Course object for its calculator strategy.
@@ -302,8 +308,8 @@ public class Student extends User {
             //if yes, give the work to the calculator object.
             return calculator.calculateFinalAverage(theCourse, this);
         } else {
-            //if no calculator, can't calculate.
-             System.out.println("Student problem: calculateClassAverage course " + theCourse.getName() + " has no calculator");
+            //if no calculator set, print error and return 0.
+             System.out.println("Student problem: calculateClassAverage course " + theCourse.getName() + " has no calculator strategy set");
             return 0.0;
         }
     }
@@ -313,16 +319,14 @@ public class Student extends User {
      * setFinalGradeForCourse stores the final letter grade the teacher assigned for a course.
      * Checks if the grade letter is valid using GradeScale first.
      * Then puts the valid grade letter into the finalGrades map for this student.
-     * Fires observer event.
+     * Fires observer event "finalGradeSet".
      * @param theCourse The course the grade is for.
-     * @param letterGrade The grade string like "A", "B-", "C" etc.
+     * @param letterGrade The grade string like "A", "B".
      */
     public void setFinalGradeForCourse(Course theCourse, String letterGrade) {
         // Check inputs are valid.
         boolean courseExists = (theCourse != null);
-        // Check student is actually in the course maybe completed it? Or still current?
-        // Let's assume teacher assigns it while current, before completeCourse is called maybe.
-        // Or maybe it can be assigned after completion too. Check if student associated with course.
+        // Check student is actually in the course current or completed.
         boolean isInCourse = currentCourses.contains(theCourse) || completedCourses.contains(theCourse);
         boolean gradeStringExists = (letterGrade != null && !letterGrade.trim().isEmpty());
 
@@ -330,21 +334,29 @@ public class Student extends User {
             // Validate the letter grade format using GradeScale helper.
             String trimmedGrade = letterGrade.trim();
             boolean isValidLetter = false;
+            String officialLetterGrade = ""; // Store the official letter from enum
+            // Loop through enum values A, B, C, D, E.
             for (GradeScale gs : GradeScale.values()) {
+                // Compare ignoring case "a" matches "A".
                 if (gs.getLetter().equalsIgnoreCase(trimmedGrade)) {
                      isValidLetter = true;
-                     trimmedGrade = gs.getLetter(); // Use the official case like "A" not "a"
-                     break;
+                     officialLetterGrade = gs.getLetter(); // Get the canonical letter like "A"
+                     break; // Found match, stop loop.
                 }
             }
 
             if (isValidLetter) {
-                 //store the validated grade letter in the map.
-                 finalGrades.put(theCourse, trimmedGrade);
-                 //notify listeners. Pass course and grade info.
-                 pcs.firePropertyChange("finalGradeSet", null, new Object[]{theCourse, trimmedGrade});
+                 //store the validated, official letter grade in the map.
+                 finalGrades.put(theCourse, officialLetterGrade);
+                 //notify listeners. Pass course and grade maybe in array.
+                 if (pcs != null) {
+                     pcs.firePropertyChange("finalGradeSet", null, new Object[]{theCourse, officialLetterGrade});
+                 } else {
+                      System.out.println("Student problem: setFinalGrade - pcs is null for " + getUsername());
+                 }
             } else {
                  // Throw error if letter grade itself isn't valid like "X".
+                 // This gives feedback to controller/UI that input was bad.
                  throw new IllegalArgumentException("Invalid final letter grade provided: " + letterGrade);
             }
         } else {
@@ -361,6 +373,10 @@ public class Student extends User {
      * @return The final letter grade String "A", "B" etc, or null if none stored.
      */
     public String getFinalGradeForCourse(Course theCourse) {
+        // Check course key isn't null.
+        if (theCourse == null) {
+            return null;
+        }
         //just get the value from the map using the Course object as the key.
         return finalGrades.get(theCourse);
     }
@@ -437,8 +453,14 @@ public class Student extends User {
      * @param listener The object that wants to listen could be a View.
      */
     public void addPropertyChangeListener(PropertyChangeListener listener) {
-    	//pass the listener to the helper object pcs.
-        pcs.addPropertyChangeListener(listener);
+        // Check if pcs helper object exists needs initTransientFields called first
+        if (this.pcs == null) {
+             this.initTransientFields(); // Try to initialize it if null
+        }
+        // Make sure listener is not null before adding
+        if (listener != null) {
+             pcs.addPropertyChangeListener(listener);
+        }
     }
 
     /**
@@ -446,13 +468,36 @@ public class Student extends User {
      * @param listener The listener to remove.
      */
     public void removePropertyChangeListener(PropertyChangeListener listener) {
-    	// tell the helper object pcs to remove the listener.
-        pcs.removePropertyChangeListener(listener);
-    }
-    public void initTransientFields() {
-        if (this.pcs == null) {
-            this.pcs = new PropertyChangeSupport(this);
+        // Check if pcs helper exists and listener is not null
+        if (this.pcs != null && listener != null) {
+             pcs.removePropertyChangeListener(listener);
         }
+    }
+
+    // --- equals/hashCode based on username/ID ---
+    // Needed for checking contains in lists/maps maybe
+
+    /** equals checks if two Student objects represent the same student
+     *  Based on the unique studentId field.
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true; // Same object instance
+        // Check null and if it's actually a Student object
+        if (o == null || !(o instanceof Student)) return false;
+        // Check if the parent User part is equal first maybe? Or just ID? Just ID for now.
+        // if (!super.equals(o)) return false; // Optional User check
+        Student student = (Student) o;
+        // Compare using the studentId field. Objects.equals handles nulls safely.
+        return Objects.equals(studentId, student.studentId);
+    }
+
+    /** hashCode goes with equals, based on studentId */
+    @Override
+    public int hashCode() {
+        // Use Objects.hash to generate hash from studentId.
+        return Objects.hash(studentId);
+        // If also using User equals: return Objects.hash(super.hashCode(), studentId);
     }
 
 }
