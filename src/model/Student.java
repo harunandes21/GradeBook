@@ -41,7 +41,7 @@ public class Student extends User {
     // This is for the Observer pattern using standard Java stuff.
     // Lets the Student object notify Views when something changes like a grade added.
     // transient means gson wont try to save this special object to the JSON file.
-    private final transient PropertyChangeSupport pcs = new PropertyChangeSupport(this);
+    private transient PropertyChangeSupport pcs = new PropertyChangeSupport(this);
 
     //Constructor
     /**
@@ -176,6 +176,8 @@ public class Student extends User {
 
         	//put the assignment grade pair into the map. Overwrites if key already exists.
             grades.put(assignment, grade);
+            assignment.addGrade(this.getUsername(), grade);
+
 
             //send notification that grades changed. Event name "gradeAdded".
             // Send the assignment as context maybe?
@@ -447,4 +449,10 @@ public class Student extends User {
     	// tell the helper object pcs to remove the listener.
         pcs.removePropertyChangeListener(listener);
     }
+    public void initTransientFields() {
+        if (this.pcs == null) {
+            this.pcs = new PropertyChangeSupport(this);
+        }
+    }
+
 }

@@ -160,10 +160,16 @@ public class CourseView extends JFrame {
         // React to model events
         course.addPropertyChangeListener(evt -> {
             switch (evt.getPropertyName()) {
-                case "studentEnrolled", "studentRemoved" -> refreshRoster(course);
+                case "studentEnrolled", "studentRemoved" -> {
+                    if (user instanceof Teacher) refreshRoster(course);
+                }
                 case "assignmentAdded" -> refreshAssignments(course);
+                case "gradeAdded" -> {
+                    if (user instanceof Student) refreshMyGrades(course);
+                }
             }
         });
+
         
         backButton.addActionListener(e -> {
             dispose(); // Close this CourseView window
@@ -255,6 +261,36 @@ public class CourseView extends JFrame {
         String[] columnNames = {"Assignment", "Points"};
         assignmentTable.setModel(new javax.swing.table.DefaultTableModel(data, columnNames));
     }
+    private void refreshMyGrades(Course course) {
+        if (myGradeTable == null) return;
+
+        List<Assignment> assignments = course.getAllAssignments();
+        String[] columnNames = new String[assignments.size() + 1];
+        columnNames[0] = "Assignment";
+        for (int i = 0; i < assignments.size(); i++) {
+            columnNames[i + 1] = assignments.get(i).getName();
+        }
+
+        // Only one row: the logged-in student
+        String[][] data = new String[1][assignments.size() + 1];
+        data[0][0] = user.getUsername(); // First column is student username
+
+        if (user instanceof Student student) {
+            for (int j = 0; j < assignments.size(); j++) {
+                Assignment assignment = assignments.get(j);
+                Grade grade = student.getGradeForAssignment(assignment);
+                if (grade != null) {
+                    data[0][j + 1] = String.valueOf(grade.getPointsEarned());
+                } else {
+                    data[0][j + 1] = "-"; // No grade yet
+                }
+            }
+        }
+
+        myGradeTable.setModel(new javax.swing.table.DefaultTableModel(data, columnNames));
+    }
+    
+    
 
 
     // To be implemented to controllers later 

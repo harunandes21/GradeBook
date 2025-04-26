@@ -88,6 +88,20 @@ public class Assignment {
     public boolean isGraded() {
         return isGraded;
     }
+    
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        Assignment that = (Assignment) obj;
+        return this.name.equals(that.name); 
+    }
+
+    @Override
+    public int hashCode() {
+        return name.hashCode();
+    }
+
 
     //Setters, needed by controllers
 
