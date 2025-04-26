@@ -317,7 +317,7 @@ public class Course {
         for (Assignment a : this.assignments) {
             // Ask the student object passed in for their grade on this assignment.
             // Assumes Student has getGradeForAssignment from Person B.
-        	Grade g = student.getGradeForAssignment(a);
+        	Grade g = a.getGrade(student.getUsername());
 
         	// If the student had a grade Grade object returned not null...
             if (g != null) {
@@ -349,7 +349,7 @@ public class Course {
         // loop through assignments in this course. Use internal list.
         for (Assignment a : this.assignments) {
             // ask the student if they have a grade for this assignment.
-            Grade g = student.getGradeForAssignment(a); // Assumes Student method exists
+            Grade g = a.getGrade(student.getUsername()); // Assumes Student method exists
 
             // if the grade returned is null, it means it's ungraded for them.
             if (g == null) {
